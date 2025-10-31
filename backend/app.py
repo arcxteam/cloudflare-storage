@@ -1,0 +1,113 @@
+import os
+import uuid
+from flask import Flask, request, jsonify, send_from_directory, send_file
+from dotenv import load_dotenv
+import boto3
+from botocore.exceptions import NoCredentialsError, ClientError
+from io import BytesIO
+
+load_dotenv()
+
+app = Flask(__name__, static_folder=None)
+
+# --- Konfigurasi Cloudflare R2 ---
+R2_ACCOUNT_ID = os.getenv("R2_ACCOUNT_ID")
+R2_ACCESS_KEY_ID = os.getenv("R2_ACCESS_KEY_ID")
+R2_SECRET_ACCESS_KEY = os.getenv("R2_SECRET_ACCESS_KEY")
+R2_BUCKET_NAME = os.getenv("R2_BUCKET_NAME")
+R2_ENDPOINT_URL = f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+# URL publik langsung dari R2, digunakan sebagai cadangan atau referensi
+R2_PUBLIC_URL = os.getenv("R2_PUBLIC_URL") 
+# URL utama yang akan digunakan aplikasi, bisa localhost atau domain kustom
+PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://localhost").rstrip('/')
+
+s3_client = boto3.client(
+    's3',
+    endpoint_url=R2_ENDPOINT_URL,
+    aws_access_key_id=R2_ACCESS_KEY_ID,
+    aws_secret_access_key=R2_SECRET_ACCESS_KEY,
+    region_name='auto'
+)
+
+# --- Routes ---
+
+@app.route('/')
+def index():
+    # Nginx akan menangani ini, tapi ini cadangan jika dijalankan langsung
+    return send_from_directory('../frontend', 'index_v1.html')
+
+@app.route('/<path:filename>')
+def static_files(filename):
+    return send_from_directory('../frontend', filename)
+
+@app.route('/api/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+
+    if file:
+        try:
+            file_extension = os.path.splitext(file.filename)[1]
+            unique_filename = f"{uuid.uuid4()}{file_extension}"
+            
+            s3_client.upload_fileobj(
+                file,
+                R2_BUCKET_NAME,
+                unique_filename,
+                ExtraArgs={'ContentType': file.content_type}
+            )
+            
+            # Gunakan PUBLIC_BASE_URL untuk membuat link yang konsisten
+            local_proxy_url = f"{PUBLIC_BASE_URL}/files/{unique_filename}"
+            public_r2_url = f"{R2_PUBLIC_URL}/{unique_filename}"
+            
+            return jsonify({
+                "message": "File uploaded successfully!",
+                "filename": unique_filename,
+                "local_url": local_proxy_url,      # URL untuk diakses via aplikasi
+                "public_url": public_r2_url        # URL publik langsung dari R2
+            }), 200
+
+        except Exception as e:
+            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+@app.route('/api/files', methods=['GET'])
+def list_files():
+    try:
+        objects = s3_client.list_objects_v2(Bucket=R2_BUCKET_NAME)
+        if 'Contents' not in objects:
+            return jsonify({"files": []})
+        
+        file_list = []
+        for obj in objects['Contents']:
+            file_list.append({
+                "key": obj['Key'],
+                "last_modified": obj['LastModified'].isoformat(),
+                "size": obj['Size'],
+                "local_url": f"{PUBLIC_BASE_URL}/files/{obj['Key']}",
+                "public_url": f"{R2_PUBLIC_URL}/{obj['Key']}"
+            })
+            
+        return jsonify({"files": file_list}), 200
+
+    except Exception as e:
+        return jsonify({"error": f"Failed to fetch file list: {str(e)}"}), 500
+
+# Route untuk menyajikan file melalui proxy lokal/domain
+@app.route('/files/<filename>')
+def serve_file(filename):
+    try:
+        file_obj = s3_client.get_object(Bucket=R2_BUCKET_NAME, Key=filename)
+        file_stream = BytesIO(file_obj['Body'].read())
+        return send_file(file_stream, download_name=filename, as_attachment=False)
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'NoSuchKey':
+            return jsonify({"error": "File not found"}), 404
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)
