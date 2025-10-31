@@ -1,6 +1,77 @@
+## **Struktur Folder dan File**
 
+```
+cloudflare-storage/
+├── .gitignore
+├── .dockerignore
+├── .env
+├── docker-compose.yml
+├── backend/
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   ├── app.py
+│   └── data/
+│       └── .gitkeep
+├── frontend/
+│   ├── Dockerfile
+│   ├── nginx.conf
+│   ├── index.html
+│   ├── style.css
+│   └── script.js
+├── src/
+│   ├── images
+│       └── favicon.ico
+│
+├── LICENSE
+└── README.md
 
-Tentu, saya akan buatkan panduan khusus yang fokus pada setup Cloudflare R2 dari awal hingga siap digunakan dengan kode kita. Panduan ini dirancang untuk memudahkan siapa saja, bahkan yang baru pertama kali menggunakan R2.
+```
+
+### **Konfigurasi dan Cara Menjalankan di VPS**
+
+#### **Langkah 2: Konfigurasi File `.env`**
+
+> Ini adalah langkah terpenting. Edit file `.env`
+
+```bash
+nano .env
+```
+
+**Akses Storage Homepages**
+
+```env
+# Cloudflare R2 Credentials
+R2_ACCOUNT_ID=YOUR_ACCOUNT_ID
+R2_ACCESS_KEY_ID=YOUR_ACCESS_KEY_ID
+R2_SECRET_ACCESS_KEY=YOUR_SECRET_ACCESS_KEY
+R2_BUCKET_NAME=greyscope-flex-storage
+R2_PUBLIC_URL=https://greyscope-flex-storage.ACCOUNT_ID.r2.cloudflarestorage.com
+
+# Ganti dengan IP publik VPS Anda
+# PUBLIC_BASE_URL=http://192.168.1.100
+
+# Ganti dengan domain publik Anda
+PUBLIC_BASE_URL=https://storage.greyscope.xyz
+```
+Untuk skenario ini, pastikan Anda sudah mengatur DNS `A Record` atau `CNAME` untuk `storage.greyscope.xyz` yang menunjuk ke IP VPS Anda.
+
+#### **Langkah 3: Build dan Jalankan Aplikasi**
+
+Dari dalam folder `cloudflare-r2-final-uploader` di VPS Anda, jalankan perintah:
+
+```bash
+docker-compose up --build -d
+```
+
+---
+
+### **Jawaban Langsung untuk Pertanyaan Anda**
+
+Dengan setup ini, aplikasi Anda benar-benar universal:
+
+*   **Untuk testing lokal (Codespaces/PC):** Set `PUBLIC_BASE_URL=http://localhost`.
+*   **Untuk VPS tanpa domain:** Set `PUBLIC_BASE_URL=http://IP_VPS`.
+*   **Untuk VPS dengan domain:** Set `PUBLIC_BASE_URL=https://domain-anda.com`.
 
 ---
 
