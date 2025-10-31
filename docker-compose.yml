@@ -3,10 +3,13 @@ version: '3.8'
 services:
   backend:
     build: ./backend
-    container_name: r2_backend
+    container_name: r2_uploader_backend
     restart: unless-stopped
     env_file:
-      - .env # Memuat variabel lingkungan dari file .env
+      - .env
+    volumes:
+      # Mount folder 'data' untuk menyimpan download_counts.json
+      - ./backend/data:/app/data
     networks:
       - app-network
 
@@ -14,10 +17,10 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: r2_frontend
+    container_name: r2_uploader_frontend
     restart: unless-stopped
     ports:
-      - "80:80" # Meneruskan port 80 di host ke port 80 di container Nginx
+      - "80:80"
     depends_on:
       - backend
     networks:
