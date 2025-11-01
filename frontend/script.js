@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
             download_count: 8
         },
         {
-            key: 'price_BTC_1M.csv',
+            key: 'ohlc_BTC_1M.csv',
             size: 25678901,
             last_modified: new Date(Date.now() - 691200000).toISOString(),
             local_url: '#',
@@ -164,25 +164,26 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- Funct Update Statistic Bucket ---
-    const updateBucketStats = (files) => {
-        const totalSize = files.reduce((sum, file) => sum + file.size, 0);
-        const formattedSize = formatFileSize(totalSize);
+    const updateBucketStats = (stats) => {
+        // Update total files count (cumulative, never resets)
+        animateValue(fileCount, parseInt(fileCount.textContent) || 0, stats.total_files, 1000);
         
-        // Cloudflare R2 free tier is 10GB per month
+        // Update current period size (resets monthly)
+        animateText(bucketSize, stats.formatted_current_period_size);
+        
+        // Update remaining quota (resets monthly)
+        animateText(remainingQuota, stats.formatted_remaining);
+        
+        // Update countdown to reset (resets monthly)
+        animateText(resetCountdown, `${stats.days_until_reset} days Bucket Time Reset`);
+        
+        // Update progress bar based on current period usage
         const quotaLimit = 10 * 1024 * 1024 * 1024; // 10GB in bytes
-        const remainingQuotaBytes = Math.max(0, quotaLimit - totalSize);
-        const formattedRemaining = formatFileSize(remainingQuotaBytes);
-        
-        animateValue(fileCount, parseInt(fileCount.textContent) || 0, files.length, 1000);
-        animateText(bucketSize, formattedSize);
-        animateText(remainingQuota, formattedRemaining);
-        
-        // Update progress bar
-        const usedPercentage = (totalSize / quotaLimit) * 100;
+        const usedPercentage = (stats.current_period_size / quotaLimit) * 100;
         quotaProgress.style.width = `${usedPercentage}%`;
         quotaText.textContent = `${usedPercentage.toFixed(2)}% of 10GB used`;
         
-        // Change color
+        // Change color based on usage
         if (usedPercentage > 90) {
             quotaProgress.style.background = 'linear-gradient(to right, #e74c3c, #c0392b)';
         } else if (usedPercentage > 70) {
@@ -190,25 +191,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             quotaProgress.style.background = 'var(--gradient-1)';
         }
-    };
-
-    // --- Funct Update & Countdown Reset ---
-    const updateResetCountdown = () => {
-        const now = new Date();
-        const currentMonth = now.getMonth();
-        const currentYear = now.getFullYear();
-        
-        // Get first day of next month
-        const nextMonth = currentMonth === 11 ? 0 : currentMonth + 1;
-        const nextYear = currentMonth === 11 ? currentYear + 1 : currentYear;
-        const firstDayOfNextMonth = new Date(nextYear, nextMonth, 1);
-        
-        // Calculate days remaining
-        const msPerDay = 24 * 60 * 60 * 1000;
-        const daysRemaining = Math.ceil((firstDayOfNextMonth - now) / msPerDay);
-        
-        // Update countdown with animation
-        animateText(resetCountdown, `${daysRemaining} days Bucket Time Reset`);
     };
 
     // --- Funcnt Animated ---
@@ -383,30 +365,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (e.lengthComputable) {
                     const percentComplete = (e.loaded / e.total) * 100;
                     progressBar.style.width = percentComplete + '%';
-                    progressContainer.style.display = 'block';
+                    progressContainer.style.display = 'block'; // progress bar
                 }
             });
 
-            // Event listener after done
+            // Event listener if was done
             xhr.addEventListener('load', () => {
                 if (xhr.status === 200) {
                     const result = JSON.parse(xhr.responseText);
                     uploadForm.reset();
                     uploadForm.classList.remove('was-validated');
-                    fetchAndDisplayFiles();
+                    fetchAndDisplayFiles(); // Refresh file
                     showNotification(result.message, 'success');
                 } else {
                     const error = JSON.parse(xhr.responseText);
                     showNotification(`Error: ${error.error}`, 'error');
                 }
-                // Reset
+                // Reset progress bar
                 uploadButton.disabled = false;
                 uploadButton.innerHTML = '<i class="fas fa-cloud-upload-alt me-2"></i>Upload File';
                 progressContainer.style.display = 'none';
                 progressBar.style.width = '0%';
             });
 
-            // Event listener if error
+            // Event listener if an error
             xhr.addEventListener('error', () => {
                 showNotification('An error occurred during upload. Please try again.', 'error');
                 uploadButton.disabled = false;
@@ -456,7 +438,12 @@ document.addEventListener('DOMContentLoaded', () => {
         allFiles.unshift(newFile);
         filteredFiles = [...allFiles];
         createFileSlides();
-        updateBucketStats(allFiles);
+        updateBucketStats({
+            total_files: allFiles.length,
+            formatted_current_period_size: bucketSize.textContent.replace(' Bucket Size Stored', ''),
+            formatted_remaining: remainingQuota.textContent.replace(' UnBucket Size Stored', ''),
+            days_until_reset: parseInt(resetCountdown.textContent) || 30
+        });
         
         // Reset form and close modal
         modalUploadForm.reset();
@@ -512,7 +499,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Fetch data & view file ---
     const fetchAndDisplayFiles = async () => {
         try {
-            // Show mssg loading
             loadingMessage.style.display = 'block';
             loadingMessage.innerHTML = '<span class="loading-spinner"></span> Loading files...';
             fileSliderContainer.style.display = 'none';
@@ -527,9 +513,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 createFileSlides();
                 updateBucketStats(result.stats || {
-                    formatted_size: "0 Bytes",
+                    total_files: 0,
+                    formatted_current_period_size: "0 Bytes",
                     formatted_remaining: "10 GB",
-                    total_size: 0
+                    days_until_reset: 30
                 });
             } catch (apiError) {
                 // If API fails, use sample data
@@ -538,7 +525,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 filteredFiles = [...allFiles];
                 
                 createFileSlides();
-                updateBucketStats(allFiles);
+                updateBucketStats({
+                    total_files: allFiles.length,
+                    formatted_current_period_size: "0 Bytes",
+                    formatted_remaining: "10 GB",
+                    days_until_reset: 30
+                });
             }
             
             // Hidden mssg loading after done
@@ -552,8 +544,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize
     fetchAndDisplayFiles();
-    updateResetCountdown();
     
     // Update countdown every day
-    setInterval(updateResetCountdown, 24 * 60 * 60 * 1000);
+    setInterval(fetchAndDisplayFiles, 24 * 60 * 60 * 1000);
 });
