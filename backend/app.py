@@ -1,6 +1,7 @@
 import os
 import uuid
 import json
+import math
 from datetime import datetime
 from flask import Flask, request, jsonify, send_from_directory, send_file
 from dotenv import load_dotenv
@@ -12,7 +13,7 @@ load_dotenv()
 
 app = Flask(__name__, static_folder=None)
 
-# --- Konfigurasi Cloudflare R2 ---
+# - Config Cloudflare R2 -
 R2_ACCOUNT_ID = os.getenv("R2_ACCOUNT_ID")
 R2_ACCESS_KEY_ID = os.getenv("R2_ACCESS_KEY_ID")
 R2_SECRET_ACCESS_KEY = os.getenv("R2_SECRET_ACCESS_KEY")
@@ -21,10 +22,9 @@ R2_ENDPOINT_URL = f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
 R2_PUBLIC_URL = os.getenv("R2_PUBLIC_URL")
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://localhost").rstrip('/')
 
-# --- Konfigurasi Pelacakan Unduhan ---
 DOWNLOAD_COUNT_FILE = 'data/download_counts.json'
 
-# Inisialisasi S3 client
+# - Storage Compatible w/ S3 client -
 s3_client = boto3.client(
     's3',
     endpoint_url=R2_ENDPOINT_URL,
@@ -33,9 +33,9 @@ s3_client = boto3.client(
     region_name='auto'
 )
 
-# --- Fungsi Bantuan untuk Pelacakan ---
+# - Funct helps tracking -
 def get_download_counts():
-    """Membaca file JSON untuk mendapatkan jumlah unduhan."""
+    """Read file JSON for counting any downloaded."""
     if not os.path.exists(DOWNLOAD_COUNT_FILE):
         return {}
     try:
@@ -45,7 +45,7 @@ def get_download_counts():
         return {}
 
 def increment_download_count(filename):
-    """Menaikkan jumlah unduhan untuk file tertentu dan menyimpannya."""
+    """Counting be ready accumulative total download file."""
     counts = get_download_counts()
     counts[filename] = counts.get(filename, 0) + 1
     try:
@@ -54,7 +54,57 @@ def increment_download_count(filename):
     except IOError:
         app.logger.error(f"Could not write to download count file: {DOWNLOAD_COUNT_FILE}")
 
-# --- Routes ---
+def format_file_size(bytes):
+    """Format size file in data directory storage."""
+    if bytes == 0:
+        return "0 Bytes"
+    
+    k = 1024
+    sizes = ["Bytes", "KB", "MB", "GB", "TB"]
+    i = int(math.floor(math.log(bytes) / math.log(k)))
+    
+    if i >= len(sizes):
+        i = len(sizes) - 1
+    
+    return f"{round(bytes / math.pow(k, i), 2)} {sizes[i]}"
+
+def get_bucket_stats():
+    """Counting a total size file & limit kuota R2."""
+    try:
+        objects = s3_client.list_objects_v2(Bucket=R2_BUCKET_NAME)
+        if 'Contents' not in objects:
+            return {
+                "total_size": 0,
+                "formatted_size": "0 Bytes",
+                "remaining_quota": 10 * 1024 * 1024 * 1024,  # 10GB in bytes
+                "formatted_remaining": "10 GB"
+            }
+        
+        total_size = sum(obj['Size'] for obj in objects['Contents'])
+        formatted_size = format_file_size(total_size)
+        
+        # Cloudflare R2 free tier 10GB/month
+        quota_limit = 10 * 1024 * 1024 * 1024
+        remaining_quota = max(0, quota_limit - total_size)
+        formatted_remaining = format_file_size(remaining_quota)
+        
+        return {
+            "total_size": total_size,
+            "formatted_size": formatted_size,
+            "remaining_quota": remaining_quota,
+            "formatted_remaining": formatted_remaining
+        }
+    except Exception as e:
+        app.logger.error(f"Error calculating bucket stats: {str(e)}")
+        # fallback value default if error
+        return {
+            "total_size": 0,
+            "formatted_size": "0 Bytes",
+            "remaining_quota": 10 * 1024 * 1024 * 1024,
+            "formatted_remaining": "10 GB"
+        }
+
+# - MAIN ROUTERS -
 @app.route('/')
 def index():
     return send_from_directory('../frontend', 'index.html')
@@ -97,12 +147,16 @@ def upload_file():
         except Exception as e:
             return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
+# - ROUTE API FILE -
 @app.route('/api/files', methods=['GET'])
 def list_files():
     try:
         objects = s3_client.list_objects_v2(Bucket=R2_BUCKET_NAME)
         if 'Contents' not in objects:
-            return jsonify({"files": []})
+            return jsonify({
+                "files": [],
+                "stats": get_bucket_stats()
+            })
         
         download_counts = get_download_counts()
         file_list = []
@@ -116,10 +170,13 @@ def list_files():
                 "download_count": download_counts.get(obj['Key'], 0)
             })
             
-        # Urutkan dari yang terbaru
         file_list.sort(key=lambda x: x['last_modified'], reverse=True)
         
-        return jsonify({"files": file_list}), 200
+        # restrukture JSON enhanced w/ frontend
+        return jsonify({
+            "files": file_list,
+            "stats": get_bucket_stats()
+        }), 200
 
     except Exception as e:
         return jsonify({"error": f"Failed to fetch file list: {str(e)}"}), 500
@@ -127,7 +184,6 @@ def list_files():
 @app.route('/files/<filename>')
 def serve_file(filename):
     try:
-        # Tambahkan log untuk menaikkan counter
         increment_download_count(filename)
         
         file_obj = s3_client.get_object(Bucket=R2_BUCKET_NAME, Key=filename)
@@ -139,7 +195,6 @@ def serve_file(filename):
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    # Pastikan folder data ada
     if not os.path.exists('data'):
         os.makedirs('data')
     app.run(host='0.0.0.0', port=5000, debug=True)
