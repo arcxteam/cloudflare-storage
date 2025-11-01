@@ -1,6 +1,7 @@
-# File&Folder data
+# File & folder data
 .env
 
+data/
 backend/data/*
 !backend/data/.gitkeep
 
