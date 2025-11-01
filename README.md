@@ -200,4 +200,6 @@ PUBLIC_BASE_URL=https://your-domain.com
 
 ### **Selesai!**
 
-Setelah Anda mengisi file `.env` dengan benar, aplikasi `cloudflare-storage` Anda sudah memiliki semua yang dibutuhkan untuk terhubung ke gudang penyimpanan Cloudflare R2. Anda sekarang bisa menjalankan `docker-compose up --build -d` dan aplikasi akan berfungsi dengan sempurna.
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
