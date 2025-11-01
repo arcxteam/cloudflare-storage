@@ -17,10 +17,10 @@ cloudflare-storage/
 │   ├── nginx.conf
 │   ├── index.html
 │   ├── style.css
-│   └── script.js
-├── src/
-│   ├── images
+│   ├── script.js
+│   └── src/
 │       └── favicon.ico
+├── docs/
 │
 ├── LICENSE
 └── README.md
