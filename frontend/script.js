@@ -367,26 +367,59 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        const file = fileInput.files[0];
         const formData = new FormData();
-        formData.append('file', fileInput.files[0]);
+        formData.append('file', file);
         
         uploadButton.disabled = true;
         uploadButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Uploading...';
 
         try {
-            const response = await fetch('/api/upload', { method: 'POST', body: formData });
-            const result = await response.json();
+            // Use XMLHttpRequest for progress tracking
+            const xhr = new XMLHttpRequest();
+            
+            // Event listener progress
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const percentComplete = (e.loaded / e.total) * 100;
+                    progressBar.style.width = percentComplete + '%';
+                    progressContainer.style.display = 'block';
+                }
+            });
 
-            if (response.ok) {
-                uploadForm.reset();
-                uploadForm.classList.remove('was-validated');
-                fetchAndDisplayFiles();
-            } else {
-                alert(`Error: ${result.error}`);
-            }
+            // Event listener after done
+            xhr.addEventListener('load', () => {
+                if (xhr.status === 200) {
+                    const result = JSON.parse(xhr.responseText);
+                    uploadForm.reset();
+                    uploadForm.classList.remove('was-validated');
+                    fetchAndDisplayFiles();
+                    showNotification(result.message, 'success');
+                } else {
+                    const error = JSON.parse(xhr.responseText);
+                    showNotification(`Error: ${error.error}`, 'error');
+                }
+                // Reset
+                uploadButton.disabled = false;
+                uploadButton.innerHTML = '<i class="fas fa-cloud-upload-alt me-2"></i>Upload File';
+                progressContainer.style.display = 'none';
+                progressBar.style.width = '0%';
+            });
+
+            // Event listener if error
+            xhr.addEventListener('error', () => {
+                showNotification('An error occurred during upload. Please try again.', 'error');
+                uploadButton.disabled = false;
+                uploadButton.innerHTML = '<i class="fas fa-cloud-upload-alt me-2"></i>Upload File';
+                progressContainer.style.display = 'none';
+                progressBar.style.width = '0%';
+            });
+
+            xhr.open('POST', '/api/upload');
+            xhr.send(formData);
+
         } catch (error) {
-            alert('An error occurred. Please try again.');
-        } finally {
+            showNotification('An error occurred. Please try again.', 'error');
             uploadButton.disabled = false;
             uploadButton.innerHTML = '<i class="fas fa-cloud-upload-alt me-2"></i>Upload File';
         }
@@ -479,7 +512,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Fetch data & view file ---
     const fetchAndDisplayFiles = async () => {
         try {
+            // Show mssg loading
             loadingMessage.style.display = 'block';
+            loadingMessage.innerHTML = '<span class="loading-spinner"></span> Loading files...';
             fileSliderContainer.style.display = 'none';
             
             // Try to fetch from API first
@@ -506,10 +541,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateBucketStats(allFiles);
             }
             
+            // Hidden mssg loading after done
             loadingMessage.style.display = 'none';
+
         } catch (error) {
             loadingMessage.textContent = `Error: ${error.message}`;
-            loadingMessage.style.color = 'var(--error-color)';
+            loadingMessage.style.color = '#e74c3c';
         }
     };
 
