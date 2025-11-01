@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Sample data testing ---
     const sampleFiles = [
         {
-            key: 'presentation.pdf',
+            key: 'A1_presentation.pdf',
             size: 2546576,
             last_modified: new Date().toISOString(),
             local_url: '#',
@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
             download_count: 18
         },
         {
-            key: 'team-photo.jpg',
+            key: 'team-photo.png',
             size: 3879731,
             last_modified: new Date(Date.now() - 172800000).toISOString(),
             local_url: '#',
@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
             download_count: 35
         },
         {
-            key: 'report.xlsx',
+            key: 'annual_report.xlsx',
             size: 876544,
             last_modified: new Date(Date.now() - 345600000).toISOString(),
             local_url: '#',
@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
             download_count: 12
         },
         {
-            key: 'architecture.png',
+            key: 'data_file.json',
             size: 2156789,
             last_modified: new Date(Date.now() - 432000000).toISOString(),
             local_url: '#',
@@ -83,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
             download_count: 23
         },
         {
-            key: 'budget-2024.pdf',
+            key: 'budget-2025.zip',
             size: 3456789,
             last_modified: new Date(Date.now() - 518400000).toISOString(),
             local_url: '#',
@@ -91,7 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
             download_count: 45
         },
         {
-            key: 'meeting-notes.docx',
+            key: 'signer-contract.txt',
             size: 567890,
             last_modified: new Date(Date.now() - 604800000).toISOString(),
             local_url: '#',
@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
             download_count: 8
         },
         {
-            key: 'product-launch.mp4',
+            key: 'price_BTC_1M.csv',
             size: 25678901,
             last_modified: new Date(Date.now() - 691200000).toISOString(),
             local_url: '#',
@@ -107,7 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
             download_count: 67
         },
         {
-            key: 'brand-guidelines.pdf',
+            key: 'brand-presentation.ppt',
             size: 4567890,
             last_modified: new Date(Date.now() - 777600000).toISOString(),
             local_url: '#',
@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
             download_count: 34
         },
         {
-            key: 'user-research.xlsx',
+            key: 'readme.md',
             size: 1234567,
             last_modified: new Date(Date.now() - 864000000).toISOString(),
             local_url: '#',
@@ -123,7 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
             download_count: 19
         },
         {
-            key: 'prototype.sketch',
+            key: 'prototype-design.dwg',
             size: 9876543,
             last_modified: new Date(Date.now() - 950400000).toISOString(),
             local_url: '#',
@@ -152,9 +152,13 @@ document.addEventListener('DOMContentLoaded', () => {
             'pdf': 'fa-file-pdf', 'doc': 'fa-file-word', 'docx': 'fa-file-word',
             'xls': 'fa-file-excel', 'xlsx': 'fa-file-excel', 'ppt': 'fa-file-powerpoint',
             'pptx': 'fa-file-powerpoint', 'jpg': 'fa-file-image', 'jpeg': 'fa-file-image',
-            'png': 'fa-file-image', 'gif': 'fa-file-image', 'mp4': 'fa-file-video',
+            'png': 'fa-file-image', 'gif': 'fa-file-image', 'mp4': 'fa-file-video', 'csv': 'fa-file-excel',
             'mp3': 'fa-file-audio', 'zip': 'fa-file-zipper', 'rar': 'fa-file-zipper',
-            'sketch': 'fa-file'
+            'sketch': 'fa-file-fragment', 'sh': 'fa-file-code', 'py': 'fa-file-code', 'js': 'fa-file-code',
+            'html': 'fa-file-code', 'yml': 'fa-file-code', 'sol': 'fa-file-code', 'ts': 'fa-file-code',
+            'json': 'fa-file-code', 'php': 'fa-file-code', 'java': 'fa-file-code', 'rb': 'fa-file-code',
+            'ipynb': 'fa-file-code', 'cpp': 'fa-file-code', 'go': 'fa-file-code', 'md': 'fa-file-shield',
+            'txt': 'fa-file-contract', 'dwg': 'fa-file-fragment'
         };
         return iconMap[ext] || 'fa-file';
     };
@@ -286,8 +290,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="file-card-footer">
                         <span class="download-count"><i class="fas fa-download"></i> ${file.download_count} times</span>
                         <div>
-                            <a href="${file.local_url}" target="_blank" class="btn btn-download btn-sm"><i class="fas fa-external-link-alt"></i></a>
-                            <button class="btn btn-copy btn-sm" onclick="copyToClipboard('${file.public_url}', this)"><i class="fas fa-copy"></i></button>
+                            <a href="${file.local_url}" target="_blank" class="btn btn-download btn-sm"><i class="fas fa-file-arrow-down"></i></a>
+                            <button class="btn btn-copy btn-sm" onclick="copyToClipboard('${file.public_url}', this)"><i class="fas fa-arrow-up-from-bracket"></i></button>
                         </div>
                     </div>
                 `;
