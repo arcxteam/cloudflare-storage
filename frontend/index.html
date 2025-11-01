@@ -1,44 +1,73 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Greyscope&Co Storage - Your Private Cloud</title>
+    <title>An Invitible Private Buckets Storage by Cloudflare R2</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <div class="hero-section">
             <h1 class="hero-title">Give Every File the Superpowers</h1>
-            <p class="hero-subtitle">Personalize your private storage. Making it easy to share. Upload and manage your files securely.</p>
+            <p class="hero-subtitle">Personalize your private storage. Making it easy to use. Upload and manage your files securely by Cloudflare R2.</p>
         </div>
         
         <div class="card upload-card">
             <div class="card-header">
-                <h3 class="card-title"><i class="fas fa-cloud-upload-alt me-2"></i>UPLOAD YOUR FILE</h3>
+                <h3 class="card-title"><i class="fas fa-cloud-upload-alt me-2"></i>DIRECTORY STORAGE FILE</h3>
             </div>
             <div class="card-body">
                 <form id="uploadForm" class="needs-validation" novalidate>
                     <div class="mb-3">
                         <input type="file" class="form-control" id="fileInput" required>
+                        <div class="progress-container" id="progressContainer">
+                            <div class="progress-bar" id="progressBar"></div>
+                        </div>
                     </div>
                     <button type="submit" class="btn btn-generate" id="uploadButton">
                         <i class="fas fa-cloud-upload-alt me-2"></i>Upload File
                     </button>
                 </form>
-                
-                <div class="stats">
-                    <i class="fas fa-folder-open"></i>
-                    <span id="fileCount">0 Files Stored</span>
+            </div>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="card status-card">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-chart-bar me-2"></i>BUCKET STATUS</h3>
+            </div>
+            <div class="card-body">
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <i class="fas fa-folder-open"></i>
+                        <span id="fileCount">0 Bucket Files Stored</span>
+                    </div>
+                    <div class="stat-item">
+                        <i class="fas fa-database"></i>
+                        <span id="bucketSize">0 Bucket Size Stored</span>
+                    </div>
+                    <div class="stat-item">
+                        <i class="fas fa-cloud"></i>
+                        <span id="remainingQuota">10 GB UnBucket Size Stored</span>
+                    </div>
+                    <div class="stat-item countdown">
+                        <i class="fas fa-clock"></i>
+                        <span id="resetCountdown">30 days Bucket Time Reset</span>
+                    </div>
+                </div>
+                <div class="quota-bar">
+                    <div class="quota-progress" id="quotaProgress"></div>
+                    <span class="quota-text" id="quotaText">0% of 10GB used</span>
                 </div>
             </div>
         </div>
 
         <div class="card list-card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h3 class="card-title mb-0"><i class="fas fa-list me-2"></i>YOUR FILES</h3>
+                <h3 class="card-title mb-0"><i class="fas fa-list me-2"></i>BUCKETS FILES</h3>
                 <div class="search-wrapper">
                     <i class="fas fa-search"></i>
                     <input type="search" class="form-control" id="searchInput" placeholder="Search files...">
@@ -46,14 +75,57 @@
             </div>
             <div class="card-body">
                 <div id="fileListContainer">
-                    <p id="loadingMessage" class="text-center">Loading files...</p>
-                    <div id="fileList" class="file-grid"></div>
+                    <p id="loadingMessage" class="text-center">
+                        <span class="loading-spinner"></span> Loading files...
+                    </p>
+                    <div id="fileSliderContainer" class="file-slider-container" style="display: none;">
+                        <div id="fileSlider" class="file-slider"></div>
+                    </div>
+                    <div class="slider-controls" id="sliderControls" style="display: none;">
+                        <button class="slider-btn" id="prevSlide">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <button class="slider-btn" id="nextSlide">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                    <div class="slider-indicators" id="sliderIndicators" style="display: none;"></div>
                 </div>
             </div>
         </div>
         
         <div class="footer">
             &copy; <span id="currentYear"></span> Greyscope&Co. All rights reserved.
+        </div>
+    </div>
+    
+    <!-- Floating Action Button -->
+    <button class="fab" id="fabButton">
+        <i class="fas fa-plus"></i>
+    </button>
+    
+    <!-- Notification -->
+    <div class="notification" id="notification"></div>
+    
+    <!-- Modal -->
+    <div class="modal" id="uploadModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">Quick Buckets</h4>
+                <button class="modal-close" id="modalClose">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="modalUploadForm">
+                    <div class="mb-3">
+                        <input type="file" class="form-control" id="modalFileInput" required>
+                    </div>
+                    <button type="submit" class="btn btn-generate">
+                        <i class="fas fa-cloud-upload-alt me-2"></i>Upload File
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
     
