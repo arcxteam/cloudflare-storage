@@ -2,7 +2,7 @@ import os
 import uuid
 import json
 import math
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, send_from_directory, send_file
 from dotenv import load_dotenv
 import boto3
@@ -23,6 +23,7 @@ R2_PUBLIC_URL = os.getenv("R2_PUBLIC_URL")
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://localhost").rstrip('/')
 
 DOWNLOAD_COUNT_FILE = 'data/download_counts.json'
+UPLOAD_HISTORY_FILE = 'data/upload_history.json'
 
 # - Storage Compatible w/ S3 client -
 s3_client = boto3.client(
@@ -54,6 +55,42 @@ def increment_download_count(filename):
     except IOError:
         app.logger.error(f"Could not write to download count file: {DOWNLOAD_COUNT_FILE}")
 
+def get_upload_history():
+    """Get upload history to track files by period."""
+    if not os.path.exists(UPLOAD_HISTORY_FILE):
+        return {}
+    try:
+        with open(UPLOAD_HISTORY_FILE, 'r') as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return {}
+
+def save_upload_history(history):
+    """Save upload history to file."""
+    try:
+        with open(UPLOAD_HISTORY_FILE, 'w') as f:
+            json.dump(history, f, indent=4)
+    except IOError:
+        app.logger.error(f"Could not write to upload history file: {UPLOAD_HISTORY_FILE}")
+
+def get_current_period_start():
+    """Get the start date of current period (first day/current month)."""
+    now = datetime.now()
+    return datetime(now.year, now.month, 1)
+
+def get_days_until_reset():
+    """Calculate days until the end of the current period."""
+    now = datetime.now()
+    # Get first day of next month
+    if now.month == 12:
+        next_month = datetime(now.year + 1, 1, 1)
+    else:
+        next_month = datetime(now.year, now.month + 1, 1)
+    
+    # Calculate days remaining
+    days_remaining = (next_month - now).days
+    return days_remaining
+
 def format_file_size(bytes):
     """Format size file in data directory storage."""
     if bytes == 0:
@@ -69,39 +106,83 @@ def format_file_size(bytes):
     return f"{round(bytes / math.pow(k, i), 2)} {sizes[i]}"
 
 def get_bucket_stats():
-    """Counting a total size file & limit kuota R2."""
+    """Calculate bucket statistics with reset functionality."""
     try:
         objects = s3_client.list_objects_v2(Bucket=R2_BUCKET_NAME)
         if 'Contents' not in objects:
             return {
+                "total_files": 0,
                 "total_size": 0,
-                "formatted_size": "0 Bytes",
+                "formatted_total_size": "0 Bytes",
+                "current_period_size": 0,
+                "formatted_current_period_size": "0 Bytes",
                 "remaining_quota": 10 * 1024 * 1024 * 1024,  # 10GB in bytes
-                "formatted_remaining": "10 GB"
+                "formatted_remaining": "10 GB",
+                "days_until_reset": get_days_until_reset()
             }
         
-        total_size = sum(obj['Size'] for obj in objects['Contents'])
-        formatted_size = format_file_size(total_size)
+        # Get current period start date
+        current_period_start = get_current_period_start()
+        
+        upload_history = get_upload_history()
+        
+        total_files = len(objects['Contents'])
+        total_size = 0
+        current_period_size = 0
+        
+        for obj in objects['Contents']:
+            file_size = obj['Size']
+            total_size += file_size
+            
+            # Check if file was uploaded in current period
+            file_key = obj['Key']
+            if file_key in upload_history:
+                try:
+                    upload_date = datetime.fromisoformat(upload_history[file_key])
+                    if upload_date >= current_period_start:
+                        current_period_size += file_size
+                except (ValueError, TypeError):
+                    # If date parsing fails, assume it's in current period
+                    current_period_size += file_size
+            else:
+                # If file not in history, check last modified date
+                try:
+                    last_modified = obj['LastModified']
+                    if last_modified >= current_period_start:
+                        current_period_size += file_size
+                except (ValueError, TypeError):
+                    pass
+        
+        formatted_total_size = format_file_size(total_size)
+        formatted_current_period_size = format_file_size(current_period_size)
         
         # Cloudflare R2 free tier 10GB/month
         quota_limit = 10 * 1024 * 1024 * 1024
-        remaining_quota = max(0, quota_limit - total_size)
+        remaining_quota = max(0, quota_limit - current_period_size)
         formatted_remaining = format_file_size(remaining_quota)
         
         return {
+            "total_files": total_files,
             "total_size": total_size,
-            "formatted_size": formatted_size,
+            "formatted_total_size": formatted_total_size,
+            "current_period_size": current_period_size,
+            "formatted_current_period_size": formatted_current_period_size,
             "remaining_quota": remaining_quota,
-            "formatted_remaining": formatted_remaining
+            "formatted_remaining": formatted_remaining,
+            "days_until_reset": get_days_until_reset()
         }
     except Exception as e:
         app.logger.error(f"Error calculating bucket stats: {str(e)}")
-        # fallback value default if error
+        # Fallback value default if error
         return {
+            "total_files": 0,
             "total_size": 0,
-            "formatted_size": "0 Bytes",
+            "formatted_total_size": "0 Bytes",
+            "current_period_size": 0,
+            "formatted_current_period_size": "0 Bytes",
             "remaining_quota": 10 * 1024 * 1024 * 1024,
-            "formatted_remaining": "10 GB"
+            "formatted_remaining": "10 GB",
+            "days_until_reset": get_days_until_reset()
         }
 
 # - MAIN ROUTERS -
@@ -133,6 +214,11 @@ def upload_file():
                 unique_filename,
                 ExtraArgs={'ContentType': file.content_type}
             )
+            
+            # Save upload date to history
+            upload_history = get_upload_history()
+            upload_history[unique_filename] = datetime.now().isoformat()
+            save_upload_history(upload_history)
             
             local_proxy_url = f"{PUBLIC_BASE_URL}/files/{unique_filename}"
             public_r2_url = f"{R2_PUBLIC_URL}/{unique_filename}"
@@ -172,7 +258,7 @@ def list_files():
             
         file_list.sort(key=lambda x: x['last_modified'], reverse=True)
         
-        # restrukture JSON enhanced w/ frontend
+        # restructure JSON enhanced w/ frontend
         return jsonify({
             "files": file_list,
             "stats": get_bucket_stats()
