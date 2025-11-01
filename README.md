@@ -1,4 +1,4 @@
-## **Struktur Folder dan File**
+## **Structure Folder & File**
 
 ```
 cloudflare-storage/
@@ -7,9 +7,11 @@ cloudflare-storage/
 ├── .env
 ├── docker-compose.yml
 ├── backend/
+│   ├── README.md           # Guides Delete buckets R2/AWS
 │   ├── Dockerfile
 │   ├── requirements.txt
 │   ├── app.py
+│   ├── delete_buckets.py
 │   └── data/
 │       └── .gitkeep
 ├── frontend/
