@@ -194,6 +194,11 @@ def serve_file(filename):
             return jsonify({"error": "File not found"}), 404
         return jsonify({"error": str(e)}), 500
 
+@app.route('/health')
+def health_check():
+    """Endpoint for healthy checking"""
+    return jsonify({"status": "healthy"}), 200
+
 if __name__ == '__main__':
     if not os.path.exists('data'):
         os.makedirs('data')
