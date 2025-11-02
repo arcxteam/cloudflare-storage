@@ -1,8 +1,15 @@
 FROM nginx:alpine
 
-RUN rm /etc/nginx/conf.d/default.conf
+# default config
+RUN rm -f /etc/nginx/conf.d/default.conf
 
-COPY . /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/
+# Copy file static
+COPY index.html /usr/share/nginx/html/
+COPY style.css /usr/share/nginx/html/
+COPY script.js /usr/share/nginx/html/
+COPY src/ /usr/share/nginx/html/src/
 
-CMD ["nginx", "-g", "daemon off;"]
+# Copy config NGINX
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
