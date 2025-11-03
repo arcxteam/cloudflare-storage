@@ -153,7 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'xls': 'fa-file-excel', 'xlsx': 'fa-file-excel', 'ppt': 'fa-file-powerpoint',
             'pptx': 'fa-file-powerpoint', 'jpg': 'fa-file-image', 'jpeg': 'fa-file-image',
             'png': 'fa-file-image', 'gif': 'fa-file-image', 'mp4': 'fa-file-video', 'csv': 'fa-file-excel',
-            'mp3': 'fa-file-audio', 'zip': 'fa-file-zipper', 'rar': 'fa-file-zipper',
+            'mp3': 'fa-file-audio', 'zip': 'fa-file-zipper', 'rar': 'fa-file-zipper', 'svg': 'fa-file-image',
             'sketch': 'fa-file-fragment', 'sh': 'fa-file-code', 'py': 'fa-file-code', 'js': 'fa-file-code',
             'html': 'fa-file-code', 'yml': 'fa-file-code', 'sol': 'fa-file-code', 'ts': 'fa-file-code',
             'json': 'fa-file-code', 'php': 'fa-file-code', 'java': 'fa-file-code', 'rb': 'fa-file-code',
@@ -224,7 +224,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 300);
     };
 
-    // --- Funct Sliding Windows ---
+    // --- Function sliding windows ---
     const createFileSlides = () => {
         fileList.innerHTML = '';
         sliderIndicators.innerHTML = '';
@@ -239,13 +239,12 @@ document.addEventListener('DOMContentLoaded', () => {
         
         fileSliderContainer.style.display = 'block';
         
-        // Calculate number of slides
         const slideCount = Math.ceil(filteredFiles.length / filesPerSlide);
         
-        // Create slides
         for (let i = 0; i < slideCount; i++) {
             const slide = document.createElement('div');
             slide.className = 'file-slide';
+            if (i === currentSlide) slide.classList.add('active');
             
             const startIdx = i * filesPerSlide;
             const endIdx = Math.min(startIdx + filesPerSlide, filteredFiles.length);
@@ -282,15 +281,14 @@ document.addEventListener('DOMContentLoaded', () => {
             
             fileList.appendChild(slide);
             
-            // Create indicator
+            // Indicator
             const indicator = document.createElement('div');
             indicator.className = 'indicator';
-            if (i === 0) indicator.classList.add('active');
+            if (i === currentSlide) indicator.classList.add('active');
             indicator.addEventListener('click', () => goToSlide(i));
             sliderIndicators.appendChild(indicator);
         }
         
-        // Show controls if more than one slide
         if (slideCount > 1) {
             sliderControls.style.display = 'flex';
             sliderIndicators.style.display = 'flex';
@@ -299,123 +297,104 @@ document.addEventListener('DOMContentLoaded', () => {
             sliderIndicators.style.display = 'none';
         }
         
-        // Reset to first slide
-        currentSlide = 0;
         updateSlidePosition();
     };
-    
+
     const updateSlidePosition = () => {
-        fileList.style.transform = `translateX(-${currentSlide * 100}%)`;
+        const slides = document.querySelectorAll('.file-slide');
+        slides.forEach((slide, i) => {
+            slide.style.transform = `translateX(${(i - currentSlide) * 100}%)`;
+        });
         
-        // Update indicators
         const indicators = document.querySelectorAll('.indicator');
-        indicators.forEach((indicator, index) => {
-            if (index === currentSlide) {
-                indicator.classList.add('active');
-            } else {
-                indicator.classList.remove('active');
-            }
+        indicators.forEach((ind, i) => {
+            ind.classList.toggle('active', i === currentSlide);
         });
         
         prevSlide.disabled = currentSlide === 0;
-        nextSlide.disabled = currentSlide === Math.ceil(filteredFiles.length / filesPerSlide) - 1;
+        nextSlide.disabled = currentSlide === (slides.length - 1);
     };
-    
-    const goToSlide = (slideIndex) => {
-        currentSlide = slideIndex;
+
+    const goToSlide = (index) => {
+        currentSlide = index;
         updateSlidePosition();
     };
-    
-    // Event listeners for slider controls
+
     prevSlide.addEventListener('click', () => {
-        if (currentSlide > 0) {
-            currentSlide--;
-            updateSlidePosition();
-        }
-    });
-    
-    nextSlide.addEventListener('click', () => {
-        if (currentSlide < Math.ceil(filteredFiles.length / filesPerSlide) - 1) {
-            currentSlide++;
-            updateSlidePosition();
-        }
+        if (currentSlide > 0) goToSlide(currentSlide - 1);
     });
 
-    // --- Event Listener Upload ---
-    uploadForm.addEventListener('submit', async (event) => {
-        event.preventDefault();
+    nextSlide.addEventListener('click', () => {
+        const totalSlides = Math.ceil(filteredFiles.length / filesPerSlide);
+        if (currentSlide < totalSlides - 1) goToSlide(currentSlide + 1);
+    });
+
+    // --- Upload Progress Bar ---
+    const uploadFileXHR = (file, callback) => {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const xhr = new XMLHttpRequest();
+
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+                const percent = (e.loaded / e.total) * 100;
+                progressBar.style.width = `${percent}%`;
+                progressBar.textContent = `${Math.round(percent)}%`;
+                progressContainer.style.display = 'block';
+            }
+        };
+
+        xhr.onload = () => {
+            progressContainer.style.display = 'none';
+            progressBar.style.width = '0%';
+            progressBar.textContent = '0%';
+
+            if (xhr.status === 200) {
+                const result = JSON.parse(xhr.responseText);
+                callback(null, result);
+            } else {
+                const error = JSON.parse(xhr.responseText);
+                callback(error.error || 'Upload failed');
+            }
+        };
+
+        xhr.onerror = () => {
+            progressContainer.style.display = 'none';
+            callback('Network error');
+        };
+
+        xhr.open('POST', '/api/upload', true);
+        xhr.send(formData);
+    };
+
+    // --- Event Listener Upload Form ---
+    uploadForm.addEventListener('submit', (e) => {
+        e.preventDefault();
         if (!uploadForm.checkValidity()) {
             uploadForm.classList.add('was-validated');
             return;
         }
 
         const file = fileInput.files[0];
-        const formData = new FormData();
-        formData.append('file', file);
-        
         uploadButton.disabled = true;
         uploadButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Uploading...';
 
-        try {
-            // Use XMLHttpRequest for progress tracking
-            const xhr = new XMLHttpRequest();
-            
-            // Event listener progress
-            xhr.upload.addEventListener('progress', (e) => {
-                if (e.lengthComputable) {
-                    const percentComplete = (e.loaded / e.total) * 100;
-                    progressBar.style.width = percentComplete + '%';
-                    progressContainer.style.display = 'block'; // progress bar
-                }
-            });
-
-            // Event listener if was done
-            xhr.addEventListener('load', () => {
-                if (xhr.status === 200) {
-                    const result = JSON.parse(xhr.responseText);
-                    uploadForm.reset();
-                    uploadForm.classList.remove('was-validated');
-                    fetchAndDisplayFiles(); // Refresh file
-                    showNotification(result.message, 'success');
-                } else {
-                    const error = JSON.parse(xhr.responseText);
-                    showNotification(`Error: ${error.error}`, 'error');
-                }
-                // Reset progress bar
-                uploadButton.disabled = false;
-                uploadButton.innerHTML = '<i class="fas fa-cloud-upload-alt me-2"></i>Upload File';
-                progressContainer.style.display = 'none';
-                progressBar.style.width = '0%';
-            });
-
-            // Event listener if an error
-            xhr.addEventListener('error', () => {
-                showNotification('An error occurred during upload. Please try again.', 'error');
-                uploadButton.disabled = false;
-                uploadButton.innerHTML = '<i class="fas fa-cloud-upload-alt me-2"></i>Upload File';
-                progressContainer.style.display = 'none';
-                progressBar.style.width = '0%';
-            });
-
-            xhr.open('POST', '/api/upload');
-            xhr.send(formData);
-
-        } catch (error) {
-            showNotification('An error occurred. Please try again.', 'error');
+        uploadFileXHR(file, (err, result) => {
+            if (err) {
+                showNotification(`Error: ${err}`, 'error');
+            } else {
+                uploadForm.reset();
+                uploadForm.classList.remove('was-validated');
+                fetchAndDisplayFiles();
+                showNotification(result.message, 'success');
+            }
             uploadButton.disabled = false;
             uploadButton.innerHTML = '<i class="fas fa-cloud-upload-alt me-2"></i>Upload File';
-        }
+        });
     });
 
-    // --- Event Listener Modal ---
-    fabButton.addEventListener('click', () => {
-        uploadModal.classList.add('show');
-    });
-    
-    modalClose.addEventListener('click', () => {
-        uploadModal.classList.remove('show');
-    });
-    
+    // --- Event Listener Modal Upload ---
     modalUploadForm.addEventListener('submit', (e) => {
         e.preventDefault();
         if (!modalFileInput.files.length) {
@@ -425,35 +404,27 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const file = modalFileInput.files[0];
         
-        // Add file to the list
-        const newFile = {
-            key: file.name,
-            size: file.size,
-            last_modified: new Date().toISOString(),
-            local_url: '#',
-            public_url: '#',
-            download_count: 0
-        };
-        
-        allFiles.unshift(newFile);
-        filteredFiles = [...allFiles];
-        createFileSlides();
-        updateBucketStats({
-            total_files: allFiles.length,
-            formatted_current_period_size: bucketSize.textContent.replace(' Bucket Size Stored', ''),
-            formatted_remaining: remainingQuota.textContent.replace(' UnBucket Size Stored', ''),
-            days_until_reset: parseInt(resetCountdown.textContent) || 30
+        uploadFileXHR(file, (err, result) => {
+            if (err) {
+                showNotification(`Error: ${err}`, 'error');
+            } else {
+                modalUploadForm.reset();
+                uploadModal.classList.remove('show');
+                fetchAndDisplayFiles();
+                showNotification(result.message, 'success');
+            }
         });
-        
-        // Reset form and close modal
-        modalUploadForm.reset();
-        uploadModal.classList.remove('show');
-        
-        // Show success
-        showNotification(`${file.name} uploaded successfully!`, 'success');
+    });
+
+    // --- Event Listener Modal Controls ---
+    fabButton.addEventListener('click', () => {
+        uploadModal.classList.add('show');
     });
     
-    // Close modal when clicking outside
+    modalClose.addEventListener('click', () => {
+        uploadModal.classList.remove('show');
+    });
+    
     uploadModal.addEventListener('click', (e) => {
         if (e.target === uploadModal) {
             uploadModal.classList.remove('show');
@@ -481,6 +452,7 @@ document.addEventListener('DOMContentLoaded', () => {
             );
         }
         
+        currentSlide = 0;
         createFileSlides();
     });
 
@@ -503,7 +475,6 @@ document.addEventListener('DOMContentLoaded', () => {
             loadingMessage.innerHTML = '<span class="loading-spinner"></span> Loading files...';
             fileSliderContainer.style.display = 'none';
             
-            // Try to fetch from API first
             try {
                 const response = await fetch('/api/files');
                 const result = await response.json();
@@ -516,10 +487,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     total_files: 0,
                     formatted_current_period_size: "0 Bytes",
                     formatted_remaining: "10 GB",
-                    days_until_reset: 30
+                    days_until_reset: 30,
+                    current_period_size: 0
                 });
             } catch (apiError) {
-                // If API fails, use sample data
                 console.log('Using sample data for demonstration');
                 allFiles = [...sampleFiles];
                 filteredFiles = [...allFiles];
@@ -529,11 +500,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     total_files: allFiles.length,
                     formatted_current_period_size: "0 Bytes",
                     formatted_remaining: "10 GB",
-                    days_until_reset: 30
+                    days_until_reset: 30,
+                    current_period_size: 0
                 });
             }
             
-            // Hidden mssg loading after done
             loadingMessage.style.display = 'none';
 
         } catch (error) {
