@@ -16,8 +16,10 @@ services:
       dockerfile: Dockerfile
     container_name: upload_frontend
     restart: unless-stopped
+    env_file:
+      - .env
     ports:
-      - "8181:80"
+      - "8181:80" # can edit 8181 port
     depends_on:
       - backend
     networks:
