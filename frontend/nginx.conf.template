@@ -1,6 +1,6 @@
 server {
     listen 80;
-    server_name _;  # CATCH-ALL
+    server_name _;  # CATCH-ALL COMPATIBLE
 
     # === OPTIMAL UPLOAD & DOWNLOAD ===
     client_max_body_size 1G;
@@ -34,14 +34,7 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
-    # === CACHE STATIC ASSETS ===
-    location ~* \.(jpg|jpeg|png|gif|ico|css|js|woff2?|ttf|eot|svg)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable, max-age=31536000";
-        access_log off;
-    }
-
-    # === API — PROXY FLASK ===
+    # === API PROXY FLASK ===
     location /api/ {
         proxy_pass http://backend:5000/api/;
         proxy_set_header Host $host;
@@ -50,17 +43,20 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_buffering off;
         client_max_body_size 1G;
+        proxy_request_buffering off;
+        proxy_max_temp_file_size 0;
     }
 
-    # === FILES — PROXY FLASK ===
-    location /files/ {
-        proxy_pass http://backend:5000/files/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_buffering off;
-        client_max_body_size 1G;
+    # === REDIRECT R2 ===
+    location ~ ^/files/(.*) {
+        return 301 ${R2_PUBLIC_URL}/$1$is_args$args;
+    }
+
+    # === CACHE STATIC ASSETS ===
+    location ~* \.(jpg|jpeg|png|gif|ico|css|js|woff2?|ttf|eot|svg)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable, max-age=31536000";
+        access_log off;
     }
 
     # === SPA ROUTING ===
