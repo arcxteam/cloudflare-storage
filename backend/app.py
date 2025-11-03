@@ -13,7 +13,7 @@ load_dotenv()
 
 app = Flask(__name__, static_folder=None)
 
-# - Config Cloudflare R2 -
+# Config Cloudflare R2
 R2_ACCOUNT_ID = os.getenv("R2_ACCOUNT_ID")
 R2_ACCESS_KEY_ID = os.getenv("R2_ACCESS_KEY_ID")
 R2_SECRET_ACCESS_KEY = os.getenv("R2_SECRET_ACCESS_KEY")
@@ -25,7 +25,7 @@ PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://localhost").rstrip('/')
 DOWNLOAD_COUNT_FILE = 'data/download_counts.json'
 UPLOAD_HISTORY_FILE = 'data/upload_history.json'
 
-# - Storage Compatible w/ S3 client -
+# Storage Compatible w/ S3 client
 s3_client = boto3.client(
     's3',
     endpoint_url=R2_ENDPOINT_URL,
@@ -34,7 +34,7 @@ s3_client = boto3.client(
     region_name='auto'
 )
 
-# - Funct helps tracking -
+# Funct helps tracking
 def get_download_counts():
     """Read file JSON for counting any downloaded."""
     if not os.path.exists(DOWNLOAD_COUNT_FILE):
@@ -185,7 +185,7 @@ def get_bucket_stats():
             "days_until_reset": get_days_until_reset()
         }
 
-# - MAIN ROUTERS -
+# MAIN API ROUTERS
 @app.route('/')
 def index():
     return send_from_directory('../frontend', 'index.html')
@@ -203,37 +203,55 @@ def upload_file():
     if file.filename == '':
         return jsonify({"error": "No selected file"}), 400
 
-    if file:
-        try:
-            file_extension = os.path.splitext(file.filename)[1]
-            unique_filename = f"{uuid.uuid4()}{file_extension}"
-            
-            s3_client.upload_fileobj(
-                file,
-                R2_BUCKET_NAME,
-                unique_filename,
-                ExtraArgs={'ContentType': file.content_type}
+    try:
+        original_filename = file.filename
+        key = original_filename
+        counter = 1
+        while True:
+            try:
+                s3_client.head_object(Bucket=R2_BUCKET_NAME, Key=key)
+                name, ext = os.path.splitext(original_filename)
+                key = f"{name} ({counter}){ext}"
+                counter += 1
+            except ClientError as e:
+                if e.response['Error']['Code'] == '404':
+                    break
+                else:
+                    raise
+
+        # --- STREAMING TO R2 ---
+        file.stream.seek(0)
+        s3_client.upload_fileobj(
+            file.stream,  # Streaming
+            R2_BUCKET_NAME,
+            key,
+            ExtraArgs={'ContentType': file.content_type},
+            Config=boto3.s3.transfer.TransferConfig(
+                multipart_threshold=1024*20,  # Auto if >20MB
+                max_concurrency=10,
+                multipart_chunksize=1024*25,
+                use_threads=True
             )
-            
-            # Save upload date to history
-            upload_history = get_upload_history()
-            upload_history[unique_filename] = datetime.now().isoformat()
-            save_upload_history(upload_history)
-            
-            local_proxy_url = f"{PUBLIC_BASE_URL}/files/{unique_filename}"
-            public_r2_url = f"{R2_PUBLIC_URL}/{unique_filename}"
-            
-            return jsonify({
-                "message": "File uploaded successfully!",
-                "filename": unique_filename,
-                "local_url": local_proxy_url,
-                "public_url": public_r2_url
-            }), 200
+        )
 
-        except Exception as e:
-            return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+        # Save history
+        upload_history = get_upload_history()
+        upload_history[key] = datetime.now().isoformat()
+        save_upload_history(upload_history)
+        
+        local_proxy_url = f"{PUBLIC_BASE_URL}/files/{key}"
+        public_r2_url = f"{R2_PUBLIC_URL}/{key}"
+        
+        return jsonify({
+            "message": "File uploaded successfully!",
+            "filename": key,
+            "local_url": local_proxy_url,
+            "public_url": public_r2_url
+        }), 200
 
-# - ROUTE API FILE -
+    except Exception as e:
+        return jsonify({"error": f"Upload failed: {str(e)}"}), 500
+
 @app.route('/api/files', methods=['GET'])
 def list_files():
     try:
