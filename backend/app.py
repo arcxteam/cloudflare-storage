@@ -13,7 +13,7 @@ load_dotenv()
 
 app = Flask(__name__, static_folder=None)
 
-# Config Cloudflare R2
+# === CONFIG CLOUDFLARE R2 ===
 R2_ACCOUNT_ID = os.getenv("R2_ACCOUNT_ID")
 R2_ACCESS_KEY_ID = os.getenv("R2_ACCESS_KEY_ID")
 R2_SECRET_ACCESS_KEY = os.getenv("R2_SECRET_ACCESS_KEY")
@@ -25,7 +25,7 @@ PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://localhost").rstrip('/')
 DOWNLOAD_COUNT_FILE = 'data/download_counts.json'
 UPLOAD_HISTORY_FILE = 'data/upload_history.json'
 
-# Storage Compatible w/ S3 client
+# S3-Compatible Client
 s3_client = boto3.client(
     's3',
     endpoint_url=R2_ENDPOINT_URL,
@@ -34,9 +34,8 @@ s3_client = boto3.client(
     region_name='auto'
 )
 
-# Funct helps tracking
+# === HELPER FUNCTIONS ===
 def get_download_counts():
-    """Read file JSON for counting any downloaded."""
     if not os.path.exists(DOWNLOAD_COUNT_FILE):
         return {}
     try:
@@ -46,17 +45,16 @@ def get_download_counts():
         return {}
 
 def increment_download_count(filename):
-    """Counting be ready accumulative total download file."""
     counts = get_download_counts()
     counts[filename] = counts.get(filename, 0) + 1
     try:
+        os.makedirs(os.path.dirname(DOWNLOAD_COUNT_FILE), exist_ok=True)
         with open(DOWNLOAD_COUNT_FILE, 'w') as f:
             json.dump(counts, f, indent=4)
-    except IOError:
-        app.logger.error(f"Could not write to download count file: {DOWNLOAD_COUNT_FILE}")
+    except IOError as e:
+        app.logger.error(f"Failed to write download count: {e}")
 
 def get_upload_history():
-    """Get upload history to track files by period."""
     if not os.path.exists(UPLOAD_HISTORY_FILE):
         return {}
     try:
@@ -66,47 +64,36 @@ def get_upload_history():
         return {}
 
 def save_upload_history(history):
-    """Save upload history to file."""
     try:
+        os.makedirs(os.path.dirname(UPLOAD_HISTORY_FILE), exist_ok=True)
         with open(UPLOAD_HISTORY_FILE, 'w') as f:
             json.dump(history, f, indent=4)
-    except IOError:
-        app.logger.error(f"Could not write to upload history file: {UPLOAD_HISTORY_FILE}")
+    except IOError as e:
+        app.logger.error(f"Failed to write upload history: {e}")
 
 def get_current_period_start():
-    """Get the start date of current period (first day/current month)."""
     now = datetime.now()
     return datetime(now.year, now.month, 1)
 
 def get_days_until_reset():
-    """Calculate days until the end of the current period."""
     now = datetime.now()
-    # Get first day of next month
     if now.month == 12:
         next_month = datetime(now.year + 1, 1, 1)
     else:
         next_month = datetime(now.year, now.month + 1, 1)
-    
-    # Calculate days remaining
-    days_remaining = (next_month - now).days
-    return days_remaining
+    return (next_month - now).days
 
 def format_file_size(bytes):
-    """Format size file in data directory storage."""
     if bytes == 0:
         return "0 Bytes"
-    
     k = 1024
     sizes = ["Bytes", "KB", "MB", "GB", "TB"]
     i = int(math.floor(math.log(bytes) / math.log(k)))
-    
     if i >= len(sizes):
         i = len(sizes) - 1
-    
     return f"{round(bytes / math.pow(k, i), 2)} {sizes[i]}"
 
 def get_bucket_stats():
-    """Calculate bucket statistics with reset functionality."""
     try:
         objects = s3_client.list_objects_v2(Bucket=R2_BUCKET_NAME)
         if 'Contents' not in objects:
@@ -116,14 +103,12 @@ def get_bucket_stats():
                 "formatted_total_size": "0 Bytes",
                 "current_period_size": 0,
                 "formatted_current_period_size": "0 Bytes",
-                "remaining_quota": 10 * 1024 * 1024 * 1024,  # 10GB in bytes
+                "remaining_quota": 10 * 1024 * 1024 * 1024,
                 "formatted_remaining": "10 GB",
                 "days_until_reset": get_days_until_reset()
             }
         
-        # Get current period start date
         current_period_start = get_current_period_start()
-        
         upload_history = get_upload_history()
         
         total_files = len(objects['Contents'])
@@ -133,47 +118,39 @@ def get_bucket_stats():
         for obj in objects['Contents']:
             file_size = obj['Size']
             total_size += file_size
-            
-            # Check if file was uploaded in current period
             file_key = obj['Key']
+            
+            # Cek upload di periode ini
             if file_key in upload_history:
                 try:
                     upload_date = datetime.fromisoformat(upload_history[file_key])
                     if upload_date >= current_period_start:
                         current_period_size += file_size
                 except (ValueError, TypeError):
-                    # If date parsing fails, assume it's in current period
                     current_period_size += file_size
             else:
-                # If file not in history, check last modified date
                 try:
-                    last_modified = obj['LastModified']
+                    last_modified = obj['LastModified'].replace(tzinfo=None)
                     if last_modified >= current_period_start:
                         current_period_size += file_size
-                except (ValueError, TypeError):
+                except:
                     pass
         
-        formatted_total_size = format_file_size(total_size)
-        formatted_current_period_size = format_file_size(current_period_size)
-        
-        # Cloudflare R2 free tier 10GB/month
         quota_limit = 10 * 1024 * 1024 * 1024
         remaining_quota = max(0, quota_limit - current_period_size)
-        formatted_remaining = format_file_size(remaining_quota)
         
         return {
             "total_files": total_files,
             "total_size": total_size,
-            "formatted_total_size": formatted_total_size,
+            "formatted_total_size": format_file_size(total_size),
             "current_period_size": current_period_size,
-            "formatted_current_period_size": formatted_current_period_size,
+            "formatted_current_period_size": format_file_size(current_period_size),
             "remaining_quota": remaining_quota,
-            "formatted_remaining": formatted_remaining,
+            "formatted_remaining": format_file_size(remaining_quota),
             "days_until_reset": get_days_until_reset()
         }
     except Exception as e:
-        app.logger.error(f"Error calculating bucket stats: {str(e)}")
-        # Fallback value default if error
+        app.logger.error(f"Bucket stats error: {e}")
         return {
             "total_files": 0,
             "total_size": 0,
@@ -185,7 +162,7 @@ def get_bucket_stats():
             "days_until_reset": get_days_until_reset()
         }
 
-# MAIN API ROUTERS
+# === ROUTES ===
 @app.route('/')
 def index():
     return send_from_directory('../frontend', 'index.html')
@@ -194,6 +171,7 @@ def index():
 def static_files(filename):
     return send_from_directory('../frontend', filename)
 
+# === UPLOAD FILE - STREAMING - HISTORY ===
 @app.route('/api/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
@@ -219,15 +197,15 @@ def upload_file():
                 else:
                     raise
 
-        # --- STREAMING TO R2 ---
+        # STREAMING R2
         file.stream.seek(0)
         s3_client.upload_fileobj(
-            file.stream,  # Streaming
+            file.stream,
             R2_BUCKET_NAME,
             key,
-            ExtraArgs={'ContentType': file.content_type},
+            ExtraArgs={'ContentType': file.content_type or 'application/octet-stream'},
             Config=boto3.s3.transfer.TransferConfig(
-                multipart_threshold=1024*20,  # Auto if >20MB
+                multipart_threshold=1024*20,
                 max_concurrency=10,
                 multipart_chunksize=1024*25,
                 use_threads=True
@@ -250,8 +228,10 @@ def upload_file():
         }), 200
 
     except Exception as e:
+        app.logger.error(f"Upload error: {e}")
         return jsonify({"error": f"Upload failed: {str(e)}"}), 500
 
+# === LIST FILES: DOWNLOAD COUNT & STATS ===
 @app.route('/api/files', methods=['GET'])
 def list_files():
     try:
@@ -260,7 +240,7 @@ def list_files():
             return jsonify({
                 "files": [],
                 "stats": get_bucket_stats()
-            })
+            }), 200
         
         download_counts = get_download_counts()
         file_list = []
@@ -276,34 +256,45 @@ def list_files():
             
         file_list.sort(key=lambda x: x['last_modified'], reverse=True)
         
-        # restructure JSON enhanced w/ frontend
         return jsonify({
             "files": file_list,
             "stats": get_bucket_stats()
         }), 200
 
     except Exception as e:
+        app.logger.error(f"List files error: {e}")
         return jsonify({"error": f"Failed to fetch file list: {str(e)}"}), 500
 
-@app.route('/files/<filename>')
+# === DOWNLOAD: INCREMENT COUNT + STREAMING ===
+@app.route('/files/<path:filename>')
 def serve_file(filename):
     try:
         increment_download_count(filename)
         
         file_obj = s3_client.get_object(Bucket=R2_BUCKET_NAME, Key=filename)
         file_stream = BytesIO(file_obj['Body'].read())
-        return send_file(file_stream, download_name=filename, as_attachment=False)
+        file_stream.seek(0)
+        
+        return send_file(
+            file_stream,
+            download_name=filename,
+            mimetype=file_obj.get('ContentType', 'application/octet-stream'),
+            as_attachment=False
+        )
     except ClientError as e:
         if e.response['Error']['Code'] == 'NoSuchKey':
             return jsonify({"error": "File not found"}), 404
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "File access failed"}), 500
+    except Exception as e:
+        app.logger.error(f"Download error: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
+# === HEALTH CHECK ===
 @app.route('/health')
 def health_check():
-    """Endpoint for healthy checking"""
     return jsonify({"status": "healthy"}), 200
 
+# === INIT DATA DIR ===
 if __name__ == '__main__':
-    if not os.path.exists('data'):
-        os.makedirs('data')
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    os.makedirs('data', exist_ok=True)
+    app.run(host='0.0.0.0', port=5000, debug=False)
