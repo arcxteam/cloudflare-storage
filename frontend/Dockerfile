@@ -2,12 +2,13 @@ FROM nginx:alpine
 
 RUN rm -f /etc/nginx/conf.d/default.conf
 
-# Copy file static
 COPY index.html style.css script.js /usr/share/nginx/html/
 COPY src/ /usr/share/nginx/html/src/
 
-# Copy config (default.conf)
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy template config
+COPY nginx.conf.template /etc/nginx/conf.d/default.conf.template
 
 EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+
+# Placeholder template & read R2 & run nginx
+CMD ["/bin/sh", "-c", "envsubst '$R2_PUBLIC_URL' < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]
