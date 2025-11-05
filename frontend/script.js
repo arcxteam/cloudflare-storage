@@ -32,21 +32,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let filteredFiles = [];
     const filesPerSlide = 6;
 
-    // --- Sample data testing ---
-    const sampleFiles = [
-        { key: 'A1_presentation.pdf', size: 2546576, last_modified: new Date().toISOString(), local_url: '#', public_url: '#', download_count: 42 },
-        { key: 'project-proposal.docx', size: 1150976, last_modified: new Date(Date.now() - 86400000).toISOString(), local_url: '#', public_url: '#', download_count: 18 },
-        { key: 'team-photo.png', size: 3879731, last_modified: new Date(Date.now() - 172800000).toISOString(), local_url: '#', public_url: '#', download_count: 27 },
-        { key: 'demo-video.mp4', size: 159383556, last_modified: new Date(Date.now() - 259200000).toISOString(), local_url: '#', public_url: '#', download_count: 35 },
-        { key: 'annual_report.xlsx', size: 876544, last_modified: new Date(Date.now() - 345600000).toISOString(), local_url: '#', public_url: '#', download_count: 12 },
-        { key: 'data_file.json', size: 21567896, last_modified: new Date(Date.now() - 432000000).toISOString(), local_url: '#', public_url: '#', download_count: 23 },
-        { key: 'budget-2025.zip', size: 345678965, last_modified: new Date(Date.now() - 518400000).toISOString(), local_url: '#', public_url: '#', download_count: 45 },
-        { key: 'signer-contract.txt', size: 567890, last_modified: new Date(Date.now() - 604800000).toISOString(), local_url: '#', public_url: '#', download_count: 8 },
-        { key: 'ohlc_BTC_1M.csv', size: 256789011, last_modified: new Date(Date.now() - 691200000).toISOString(), local_url: '#', public_url: '#', download_count: 67 },
-        { key: 'brand-presentation.ppt', size: 4567890, last_modified: new Date(Date.now() - 777600000).toISOString(), local_url: '#', public_url: '#', download_count: 34 },
-        { key: 'readme.md', size: 1234567, last_modified: new Date(Date.now() - 864000000).toISOString(), local_url: '#', public_url: '#', download_count: 19 },
-        { key: 'prototype-design.dwg', size: 987654366, last_modified: new Date(Date.now() - 950400000).toISOString(), local_url: '#', public_url: '#', download_count: 56 }
-    ];
+    // --- Sample data testing --- [DIPERBAIKI: HAPUS SELURUH SAMPLE DATA]
+    // (Tidak ada lagi fallback ke sample)
 
     // --- Funct Utility ---
     const formatFileSize = (bytes) => {
@@ -148,6 +135,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const slideCount = Math.ceil(filteredFiles.length / filesPerSlide);
         
+        // DIPERBAIKI: Reset currentSlide jika melebihi batas slide (hindari slide kosong)
+        if (currentSlide >= slideCount) {
+            currentSlide = Math.max(0, slideCount - 1);
+        }
+        
         for (let i = 0; i < slideCount; i++) {
             const slide = document.createElement('div');
             slide.className = 'file-slide';
@@ -163,6 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 fileCard.innerHTML = `
                     <div class="file-card-header">
+                        <!-- DIPERBAIKI: Kembalikan icon file dari getFileIcon -->
                         <i class="fas ${getFileIcon(file.key)}"></i>
                         <h5 class="file-card-title">${file.key}</h5>
                     </div>
@@ -177,10 +170,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
                     <div class="file-card-footer">
+                        <!-- DIPERBAIKI: Kembalikan icon fa-download di count + buttons -->
                         <span class="download-count"><i class="fas fa-download"></i> ${file.download_count} times</span>
                         <div>
-                            <button class="btn btn-download btn-sm" data-filename="${file.key}"><i class="fas fa-file-arrow-down"></i></button>
-                            <button class="btn btn-copy btn-sm" data-filename="${file.key}" data-public-url="${file.public_url}"><i class="fas fa-arrow-up-from-bracket"></i></button>
+                            <button class="btn btn-download btn-sm" data-filename="${file.key}">
+                                <i class="fas fa-file-arrow-down"></i>
+                            </button>
+                            <button class="btn btn-copy btn-sm" data-filename="${file.key}" data-public-url="${file.public_url}">
+                                <i class="fas fa-arrow-up-from-bracket"></i>
+                            </button>
                         </div>
                     </div>
                 `;
@@ -206,6 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         updateSlidePosition();
         
+        // DIPERBAIKI: Re-attach event listeners (aman untuk icons)
         document.querySelectorAll('.btn-download').forEach(button => {
             button.addEventListener('click', handleDownloadClick);
         });
@@ -243,29 +242,36 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentSlide < totalSlides - 1) goToSlide(currentSlide + 1);
     });
 
-    // --- Function handle download/copy ---
+    // --- Function handle download/copy --- [DIPERBAIKI: PAKSA DOWNLOAD + REFRESH COUNT]
     const handleFileAction = async (filename, publicUrl, action) => {
         console.log('handleFileAction called with:', { filename, publicUrl, action });
-        // ------------------------------------
     
         try {
             if (action === 'download') {
-                const downloadUrl = `/api/serve-file/${encodeURIComponent(filename)}`;
+                // DIPERBAIKI: Gunakan fetch + blob untuk Save As (tidak render di tab)
+                const downloadUrl = `/api/serve-file/${encodeURIComponent(filename)}?t=${Date.now()}`;
                 console.log('Final download URL:', downloadUrl);
             
+                const response = await fetch(downloadUrl, { cache: 'no-cache' });
+                if (!response.ok) throw new Error('Download failed');
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.style.display = 'none';
-                a.href = downloadUrl;
+                a.href = url;
                 a.setAttribute('download', filename);
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
             
             } else if (action === 'copy') {
                 await navigator.clipboard.writeText(publicUrl);
                 showNotification('Link copied!', 'success');
             }
 
+            // DIPERBAIKI: Selalu refresh UI setelah aksi (count naik, no fallback)
             fetchAndDisplayFiles();
 
         } catch (error) {
@@ -347,6 +353,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const file = fileInput.files[0];
+        // DIPERBAIKI: Kembalikan icon + text loading
         uploadButton.disabled = true;
         uploadButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Uploading...';
 
@@ -359,6 +366,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetchAndDisplayFiles();
                 showNotification(result.message, 'success');
             }
+            // DIPERBAIKI: Kembalikan icon upload
             uploadButton.disabled = false;
             uploadButton.innerHTML = '<i class="fas fa-cloud-upload-alt me-2"></i>Upload File';
         });
@@ -401,20 +409,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- Funct searching ---
+    // --- Funct searching --- [DIPERBAIKI: Tambah debounce (tidak ganggu slide/icons)]
+    let searchTimeout;
     searchInput.addEventListener('input', (e) => {
-        const searchTerm = e.target.value.toLowerCase();
-        
-        if (searchTerm === '') {
-            filteredFiles = [...allFiles];
-        } else {
-            filteredFiles = allFiles.filter(file => 
-                file.key.toLowerCase().includes(searchTerm)
-            );
-        }
-        
-        currentSlide = 0;
-        createFileSlides();
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            const searchTerm = e.target.value.toLowerCase();
+            
+            if (searchTerm === '') {
+                filteredFiles = [...allFiles];
+            } else {
+                filteredFiles = allFiles.filter(file => 
+                    file.key.toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            currentSlide = 0;
+            createFileSlides();
+        }, 300);
     });
 
     // --- Funct notify ---
@@ -429,48 +441,40 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 3000);
     };
 
-    // --- Fetch data & view file ---
+    // --- Fetch data & view file --- [DIPERBAIKI: NO SAMPLE, BYPASS CACHE, REFRESH UI]
     const fetchAndDisplayFiles = async () => {
         try {
             loadingMessage.style.display = 'block';
             loadingMessage.innerHTML = '<span class="loading-spinner"></span> Loading files...';
             fileSliderContainer.style.display = 'none';
             
-            try {
-                const response = await fetch('/api/files');
-                const result = await response.json();
-                
-                allFiles = result.files || [];
-                filteredFiles = [...allFiles];
-                
-                createFileSlides();
-                updateBucketStats(result.stats || {
-                    total_files: 0,
-                    formatted_current_period_size: "0 Bytes",
-                    formatted_remaining: "10 GB",
-                    days_until_reset: 30,
-                    current_period_size: 0
-                });
-            } catch (apiError) {
-                console.log('Using sample data for demonstration');
-                allFiles = [...sampleFiles];
-                filteredFiles = [...allFiles];
-                
-                createFileSlides();
-                updateBucketStats({
-                    total_files: allFiles.length,
-                    formatted_current_period_size: "0 Bytes",
-                    formatted_remaining: "10 GB",
-                    days_until_reset: 30,
-                    current_period_size: 0
-                });
-            }
+            // DIPERBAIKI: Bypass cache dengan timestamp + no-cache
+            const response = await fetch(`/api/files?t=${Date.now()}`, { cache: 'no-cache' });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
+            const result = await response.json();
+            
+            allFiles = result.files || [];
+            filteredFiles = [...allFiles];
+            
+            createFileSlides();
+            updateBucketStats(result.stats || {
+                total_files: 0,
+                formatted_current_period_size: "0 Bytes",
+                formatted_remaining: "10 GB",
+                days_until_reset: 30,
+                current_period_size: 0
+            });
             
             loadingMessage.style.display = 'none';
 
         } catch (error) {
+            console.error('Failed to load files:', error);
             loadingMessage.textContent = `Error: ${error.message}`;
             loadingMessage.style.color = '#e74c3c';
+            allFiles = [];
+            filteredFiles = [];
+            createFileSlides(); // Tampilkan "No files" dengan icons utuh
         }
     };
 
