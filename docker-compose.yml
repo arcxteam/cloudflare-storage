@@ -1,7 +1,7 @@
 services:
   backend:
     build: ./backend
-    container_name: upload_backend
+    container_name: r2_backend
     restart: unless-stopped
     env_file:
       - .env
@@ -14,12 +14,12 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: upload_frontend
+    container_name: r2_frontend
     restart: unless-stopped
     env_file:
       - .env
     ports:
-      - "8181:80" # can edit 8181 port
+      - "8181:80" # if conflict edit 8181
     depends_on:
       - backend
     networks:
