@@ -10,7 +10,7 @@
 ## Preview WebUI Dashboard 
 > https://arcxteam.github.io/cloudflare-storage/frontend/
 
-### A Comprehensive Guide...How to Setup Private Storage with Cloudflare R2 Bucket also S3 API compatibility?
+<h2 style="text-align: center;">A Comprehensive Guide: How to Set Up Private Storage with Cloudflare R2 Bucket and S3 API Compatibility</h2>
 
 ## **Structure Folder & File**
 
