@@ -1,0 +1,35 @@
+# Config Nginx Host in your domain →  nano /etc/nginx/sites-available/your_domain.com
+
+# HTTP → HTTPS use main-domain edit (your_domain.com)
+server {
+    listen 80;
+    server_name your_domain.com;
+    return 301 https://$server_name$request_uri;
+}
+
+# HTTPS use main-domain if Origin CA edit (your_domain.com)
+server {
+    listen 443 ssl http2;
+    server_name your_domain.com;
+
+    # SSL Origin CA need be active or use CertBot
+    ssl_certificate /etc/nginx/ssl/origin-ca/origin-ca.pem;
+    ssl_certificate_key /etc/nginx/ssl/origin-ca/origin-ca.key;
+    include snippets/ssl-params.conf;
+
+    # Config Upload File free tier user cloudflare limit is 100mb
+    client_max_body_size 100M;
+
+    # Proxy Docker container (port 8181)
+    location / {
+        proxy_pass http://localhost:8181;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+        proxy_request_buffering off;
+        client_body_buffer_size 128k;
+    }
+}
