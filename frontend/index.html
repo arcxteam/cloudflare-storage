@@ -3,11 +3,885 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Supercharger Private Storage Buckets by Cloudflare R2</title>
+    <title>Supercharger Buckets Private Storage by Cloudflare R2</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
     <link rel="icon" href="/src/favicon.ico" type="image/x-icon">
-    <link rel="stylesheet" href="style.css">
+    <style>
+        :root {
+            --primary: #9bd928;
+            --primary-hover: #f3169e;
+            --secondary: #0a0a0a;
+            --secondary-hover: #4b5563;
+            --dark-bg: #000000;
+            --card-bg: #505050;
+            --text-light: #f1f5f9;
+            --text-muted: #a0aec0;
+            --success: #f3169e;
+            --success-hover: #f3169e;
+            --border-color: #2d3748;
+            --glow-color: rgba(155, 217, 40, 0.5);
+            --gradient-1: linear-gradient(135deg, #9bd928, #f3169e);
+            --gradient-2: linear-gradient(45deg, #0a0a0a, #505050);
+            --status-bg: rgba(243, 22, 158, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--dark-bg);
+            color: var(--text-light);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding-top: 30px;
+            padding-bottom: 60px;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(155, 217, 40, 0.1) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(243, 22, 158, 0.1) 0%, transparent 20%),
+                radial-gradient(circle at 50% 50%, rgba(80, 80, 80, 0.2) 0%, transparent 50%),
+                linear-gradient(135deg, rgba(0, 0, 0, 0.9) 0%, rgba(80, 80, 80, 0.8) 100%);
+            background-size: cover;
+            background-attachment: fixed;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Animated background particles */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(circle at 20% 30%, rgba(155, 217, 40, 0.2) 0%, transparent 8%),
+                radial-gradient(circle at 80% 70%, rgba(243, 22, 158, 0.2) 0%, transparent 8%),
+                radial-gradient(circle at 40% 50%, rgba(155, 217, 40, 0.15) 0%, transparent 6%),
+                radial-gradient(circle at 60% 20%, rgba(243, 22, 158, 0.15) 0%, transparent 6%);
+            background-size: 20px 20px;
+            animation: particleMove 60s linear infinite;
+            z-index: -1;
+        }
+
+        @keyframes particleMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(-20px, -20px); }
+        }
+
+        .container { 
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 15px;
+        }
+
+        /* Hero Section with enhanced animations */
+        .hero-section { 
+            text-align: center; 
+            margin-bottom: 50px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-section::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 4px;
+            background: var(--gradient-1);
+            border-radius: 2px;
+            animation: glowPulse 2s infinite alternate;
+        }
+
+        @keyframes glowPulse {
+            0% { box-shadow: 0 0 5px var(--glow-color); }
+            100% { box-shadow: 0 0 20px var(--glow-color), 0 0 30px var(--glow-color); }
+        }
+
+        .hero-title {
+            font-size: 3rem; 
+            font-weight: 800; 
+            line-height: 1.1; 
+            margin-bottom: 20px;
+            background: linear-gradient(to right, #9bd928, #f3169e, #9bd928);
+            background-size: 200% auto;
+            -webkit-background-clip: text; 
+            background-clip: text; 
+            -webkit-text-fill-color: transparent;
+            animation: gradientShift 3s ease infinite;
+            text-shadow: 0 0 30px rgba(155, 217, 40, 0.3);
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .hero-subtitle {
+            font-size: 1.25rem; 
+            color: var(--text-muted); 
+            max-width: 600px;
+            margin: 0 auto 40px; 
+            line-height: 1.6;
+            position: relative;
+        }
+
+        /* Enhanced Cards with animations */
+        .card {
+            background-color: var(--card-bg); 
+            border: none; 
+            border-radius: 16px;
+            overflow: hidden; 
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease; 
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--gradient-1);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .card:hover { 
+            transform: translateY(-5px); 
+            box-shadow: 0 25px 30px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-header {
+            background-color: rgba(173, 173, 173, 0.7); 
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px 24px; 
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card-header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background: var(--gradient-1);
+        }
+
+        .card-title { 
+            font-weight: 700; 
+            font-size: 1.25rem; 
+            margin: 0; 
+            color: #000; 
+            text-transform: uppercase; 
+            letter-spacing: 1.5px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .card-body { 
+            padding: 24px; 
+            position: relative;
+        }
+
+        /* Enhanced form controls */
+        .form-control {
+            background-color: rgba(255, 255, 255, 0.1); 
+            color: var(--text-light);
+            border: 1px solid rgba(155, 217, 40, 0.3); 
+            padding: 12px 16px; 
+            border-radius: 8px;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .form-control:focus {
+            background-color: rgba(255, 255, 255, 0.2); 
+            color: #fff; 
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(155, 217, 40, 0.3); 
+            outline: none;
+        }
+
+        /* Enhanced buttons */
+        .btn-generate {
+            background-color: var(--primary); 
+            border: none; 
+            padding: 12px 24px; 
+            font-weight: 600;
+            width: 100%; 
+            transition: all 0.3s; 
+            color: #000;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .btn-generate::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: var(--gradient-1);
+            transition: left 0.3s ease;
+            z-index: -1;
+        }
+
+        .btn-generate:hover::before {
+            left: 0;
+        }
+
+        .btn-generate:hover { 
+            color: #fff;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(155, 217, 40, 0.4);
+        }
+
+        /* Enhanced stats section */
+        .stats {
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 10px;
+            font-weight: 600; 
+            color: var(--text-muted); 
+            margin-top: 24px; 
+            padding-top: 24px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+        }
+
+        .stats::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 1px;
+            background: var(--gradient-1);
+        }
+
+        .stats i { 
+            color: var(--success); 
+            animation: pulse 1.5s infinite;
+            font-size: 1.2rem;
+        }
+
+        @keyframes pulse { 
+            0% { transform: scale(1); } 
+            50% { transform: scale(1.2); } 
+            100% { transform: scale(1); } 
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        .stats-grid::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--gradient-1);
+            border-radius: 2px;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            padding: 15px;
+            background-color: var(--status-bg);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center, rgba(155, 217, 40, 0.1) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .stat-item:hover::before {
+            opacity: 1;
+        }
+
+        .stat-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        .stat-item i {
+            color: var(--primary);
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .stat-item span {
+            font-weight: 600;
+            color: var(--text-light);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .stat-item.countdown {
+            background-color: rgba(243, 22, 158, 0.2);
+        }
+
+        .stat-item.countdown i {
+            color: var(--success);
+        }
+
+        .quota-bar {
+            width: 100%;
+            height: 10px;
+            background-color: rgba(123, 206, 14, 0.973);
+            border-radius: 5px;
+            overflow: hidden;
+            position: relative;
+            margin-top: 10px;
+        }
+
+        .quota-progress {
+            height: 100%;
+            background: var(--gradient-1);
+            width: 0%;
+            transition: width 1s ease;
+            border-radius: 5px;
+        }
+
+        .quota-text {
+            position: absolute;
+            top: -25px;
+            right: 0;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* Enhanced search bar */
+        .search-wrapper {
+            position: relative;
+            width: 250px;
+        }
+
+        .search-wrapper i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            transition: color 0.3s;
+        }
+
+        .search-wrapper:focus-within i {
+            color: var(--primary);
+        }
+
+        .search-wrapper .form-control {
+            padding-left: 40px;
+            background-color: rgba(255,255,255,0.05);
+        }
+
+        /* Sliding windows untuk file grid */
+        .file-slider-container {
+            position: relative;
+            overflow: hidden;
+            margin-top: 1rem;
+        }
+
+        .file-slider {
+            display: flex;
+            transition: transform 0.5s ease;
+        }
+
+        .file-slide {
+            min-width: 100%;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .slider-controls {
+            display: flex;
+            justify-content: center;
+            margin-top: 1rem;
+            gap: 10px;
+        }
+
+        .slider-btn {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-light);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .slider-btn:hover {
+            background-color: var(--primary);
+            color: #000;
+        }
+
+        .slider-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .slider-indicators {
+            display: flex;
+            justify-content: center;
+            margin-top: 10px;
+            gap: 8px;
+        }
+
+        .indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--border-color);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .indicator.active {
+            background-color: var(--primary);
+            transform: scale(1.2);
+        }
+
+        /* Enhanced file grid */
+        .file-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .file-card {
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+            animation: fadeIn 0.5s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .file-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center, rgba(155, 217, 40, 0.1) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .file-card:hover::before {
+            opacity: 1;
+        }
+
+        .file-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            border-color: var(--primary);
+        }
+
+        .file-card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .file-card-header i {
+            font-size: 2rem;
+            color: var(--primary);
+            margin-right: 1rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0); }
+        }
+
+        .file-card-title {
+            font-weight: 600;
+            color: var(--text-light);
+            word-break: break-all;
+            margin: 0;
+            line-height: 1.4;
+        }
+
+        .file-card-body {
+            flex-grow: 1;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .file-card-body .meta-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.25rem;
+        }
+
+        .file-card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+            position: relative;
+            z-index: 1;
+        }
+
+        .download-count {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .download-count i {
+            color: var(--success);
+        }
+
+        .btn-download, .btn-copy {
+            background-color: var(--success); 
+            border: none; 
+            padding: 8px 12px; 
+            color: #fff;
+            border-radius: 6px; 
+            transition: all 0.3s; 
+            cursor: pointer; 
+            font-size: 0.9rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-download::before, .btn-copy::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.3s, height 0.3s;
+        }
+
+        .btn-download:hover::before, .btn-copy:hover::before {
+            width: 100px;
+            height: 100px;
+        }
+
+        .btn-download:hover, .btn-copy:hover { 
+            background-color: var(--primary-hover); 
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(243, 22, 158, 0.4);
+        }
+
+        /* Enhanced footer */
+        .footer { 
+            text-align: center; 
+            margin-top: 60px; 
+            color: var(--text-muted); 
+            font-size: 0.9rem;
+            position: relative;
+        }
+
+        .footer::before {
+            content: '';
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 2px;
+            background: var(--gradient-1);
+        }
+
+        /* Loading animation */
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(155, 217, 40, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* File type icons with colors */
+        .file-icon-pdf { color: #e74c3c; }
+        .file-icon-doc { color: #2980b9; }
+        .file-icon-img { color: #f39c12; }
+        .file-icon-video { color: #9b59b6; }
+        .file-icon-audio { color: #1abc9c; }
+        .file-icon-zip { color: #34495e; }
+        .file-icon-code { color: #a3da0d; }
+        .file-icon-ppt { color: #2a1abc; }
+        .file-icon-contract { color: #fbfcfc; }
+        .file-icon-shield { color: #fffb0c; }
+        .file-icon-fragment { color: #ff0c92; }
+        .file-icon-default { color: #95a5a6; }
+
+        /* Notification styles */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            background-color: var(--card-bg);
+            border-left: 4px solid var(--primary);
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            color: var(--text-light);
+            z-index: 1000;
+            transform: translateX(120%);
+            transition: transform 0.3s ease;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            border-left-color: var(--success);
+        }
+
+        .notification.error {
+            border-left-color: #e74c3c;
+        }
+
+        /* Progress bar */
+        .progress-container {
+            width: 100%;
+            height: 6px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            margin-top: 10px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--gradient-1);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* Floating action button */
+        .fab {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--gradient-1);
+            color: #fff;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s ease;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .fab:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: var(--card-bg);
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+            animation: modalFadeIn 0.3s ease;
+        }
+
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-light);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .modal-close:hover {
+            color: var(--primary);
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .hero-title {
+                font-size: 2rem;
+            }
+            
+            .search-wrapper {
+                width: 100%;
+                margin-top: 10px;
+            }
+            
+            .file-slide {
+                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+            
+            .fab {
+                bottom: 20px;
+                right: 20px;
+                width: 50px;
+                height: 50px;
+                font-size: 20px;
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* statistik */
+        @keyframes countUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .stat-item:nth-child(1) {
+            animation: countUp 0.5s ease forwards;
+        }
+
+        .stat-item:nth-child(2) {
+            animation: countUp 0.7s ease forwards;
+        }
+
+        .stat-item:nth-child(3) {
+            animation: countUp 0.9s ease forwards;
+        }
+
+        .stat-item:nth-child(4) {
+            animation: countUp 1.1s ease forwards;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -131,6 +1005,525 @@
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const uploadForm = document.getElementById('uploadForm');
+            const fileInput = document.getElementById('fileInput');
+            const uploadButton = document.getElementById('uploadButton');
+            const fileList = document.getElementById('fileSlider');
+            const loadingMessage = document.getElementById('loadingMessage');
+            const fileCount = document.getElementById('fileCount');
+            const bucketSize = document.getElementById('bucketSize');
+            const remainingQuota = document.getElementById('remainingQuota');
+            const resetCountdown = document.getElementById('resetCountdown');
+            const quotaProgress = document.getElementById('quotaProgress');
+            const quotaText = document.getElementById('quotaText');
+            const searchInput = document.getElementById('searchInput');
+            const fileSliderContainer = document.getElementById('fileSliderContainer');
+            const sliderControls = document.getElementById('sliderControls');
+            const sliderIndicators = document.getElementById('sliderIndicators');
+            const prevSlide = document.getElementById('prevSlide');
+            const nextSlide = document.getElementById('nextSlide');
+            const fabButton = document.getElementById('fabButton');
+            const uploadModal = document.getElementById('uploadModal');
+            const modalClose = document.getElementById('modalClose');
+            const modalUploadForm = document.getElementById('modalUploadForm');
+            const modalFileInput = document.getElementById('modalFileInput');
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = document.getElementById('progressBar');
+
+            document.getElementById('currentYear').textContent = new Date().getFullYear();
+            
+            // Variabel sliding windows
+            let currentSlide = 0;
+            let allFiles = [];
+            let filteredFiles = [];
+            const filesPerSlide = 6;
+
+            // --- Sample data testing ---
+            const sampleFiles = [
+                {
+                    key: 'A1_presentation.pdf',
+                    size: 254657625,
+                    last_modified: new Date().toISOString(),
+                    local_url: '#',
+                    public_url: '#',
+                    download_count: 42
+                },
+                {
+                    key: 'project-proposal.docx',
+                    size: 1150976,
+                    last_modified: new Date(Date.now() - 86400000).toISOString(),
+                    local_url: '#',
+                    public_url: '#',
+                    download_count: 18
+                },
+                {
+                    key: 'team-photo.png',
+                    size: 3879731,
+                    last_modified: new Date(Date.now() - 172800000).toISOString(),
+                    local_url: '#',
+                    public_url: '#',
+                    download_count: 27
+                },
+                {
+                    key: 'demo-video.mp4',
+                    size: 1593835655,
+                    last_modified: new Date(Date.now() - 259200000).toISOString(),
+                    local_url: '#',
+                    public_url: '#',
+                    download_count: 35
+                },
+                {
+                    key: 'annual_report.xlsx',
+                    size: 876544,
+                    last_modified: new Date(Date.now() - 345600000).toISOString(),
+                    local_url: '#',
+                    public_url: '#',
+                    download_count: 12
+                },
+                {
+                    key: 'data-file.json',
+                    size: 21567891,
+                    last_modified: new Date(Date.now() - 432000000).toISOString(),
+                    local_url: '#',
+                    public_url: '#',
+                    download_count: 23
+                },
+                {
+                    key: 'bootstrap-2025.zip',
+                    size: 1456789125,
+                    last_modified: new Date(Date.now() - 518400000).toISOString(),
+                    local_url: '#',
+                    public_url: '#',
+                    download_count: 45
+                },
+                {
+                    key: 'signer-contract.txt',
+                    size: 567890,
+                    last_modified: new Date(Date.now() - 604800000).toISOString(),
+                    local_url: '#',
+                    public_url: '#',
+                    download_count: 8
+                },
+                {
+                    key: 'price_BTC_1M.csv',
+                    size: 256789012,
+                    last_modified: new Date(Date.now() - 691200000).toISOString(),
+                    local_url: '#',
+                    public_url: '#',
+                    download_count: 67
+                },
+                {
+                    key: 'brand-presentation.ppt',
+                    size: 4567890,
+                    last_modified: new Date(Date.now() - 777600000).toISOString(),
+                    local_url: '#',
+                    public_url: '#',
+                    download_count: 34
+                },
+                {
+                    key: 'readme.md',
+                    size: 1234567,
+                    last_modified: new Date(Date.now() - 864000000).toISOString(),
+                    local_url: '#',
+                    public_url: '#',
+                    download_count: 19
+                },
+                {
+                    key: 'prototype-design.dwg',
+                    size: 3456789125,
+                    last_modified: new Date(Date.now() - 950400000).toISOString(),
+                    local_url: '#',
+                    public_url: '#',
+                    download_count: 56
+                }
+            ];
+
+            const formatFileSize = (bytes) => {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            };
+
+            const formatDate = (dateString) => {
+                const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+                return new Date(dateString).toLocaleDateString('en-US', options);
+            };
+            
+            const getFileIcon = (filename) => {
+                const ext = filename.split('.').pop().toLowerCase();
+                const iconMap = {
+                    'pdf': 'fa-file-pdf', 'doc': 'fa-file-word', 'docx': 'fa-file-word',
+                    'xls': 'fa-file-excel', 'xlsx': 'fa-file-excel', 'ppt': 'fa-file-powerpoint',
+                    'pptx': 'fa-file-powerpoint', 'jpg': 'fa-file-image', 'jpeg': 'fa-file-image',
+                    'png': 'fa-file-image', 'gif': 'fa-file-image', 'mp4': 'fa-file-video', 'csv': 'fa-file-excel',
+                    'mp3': 'fa-file-audio', 'zip': 'fa-file-zipper', 'rar': 'fa-file-zipper', 'svg': 'fa-file-image',
+                    'sketch': 'fa-file-fragment', 'sh': 'fa-file-code', 'py': 'fa-file-code', 'js': 'fa-file-code',
+                    'html': 'fa-file-code', 'yml': 'fa-file-code', 'sol': 'fa-file-code', 'ts': 'fa-file-code',
+                    'json': 'fa-file-code', 'php': 'fa-file-code', 'java': 'fa-file-code', 'rb': 'fa-file-code',
+                    'ipynb': 'fa-file-code', 'cpp': 'fa-file-code', 'go': 'fa-file-code', 'md': 'fa-file-shield',
+                    'txt': 'fa-file-contract', 'dwg': 'fa-file-fragment'
+                };
+                return iconMap[ext] || 'fa-file';
+            };
+
+            // --- Fun Update Bucket ---
+            const updateBucketStats = (files) => {
+                const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+                const formattedSize = formatFileSize(totalSize);
+                
+                // Cloudflare R2 free tier is 10GB per month
+                const quotaLimit = 10 * 1024 * 1024 * 1024; // 10GB in bytes
+                const remainingQuotaBytes = Math.max(0, quotaLimit - totalSize);
+                const formattedRemaining = formatFileSize(remainingQuotaBytes);
+                
+                // Update text dengan animasi
+                animateValue(fileCount, parseInt(fileCount.textContent) || 0, files.length, 1000);
+                animateText(bucketSize, formattedSize);
+                animateText(remainingQuota, formattedRemaining);
+                
+                // Update progress bar
+                const usedPercentage = (totalSize / quotaLimit) * 100;
+                quotaProgress.style.width = `${usedPercentage}%`;
+                quotaText.textContent = `${usedPercentage.toFixed(2)}% of 10GB used`;
+                
+                // Change color based on usage
+                if (usedPercentage > 90) {
+                    quotaProgress.style.background = 'linear-gradient(to right, #e74c3c, #c0392b)';
+                } else if (usedPercentage > 70) {
+                    quotaProgress.style.background = 'linear-gradient(to right, #f39c12, #e67e22)';
+                } else {
+                    quotaProgress.style.background = 'var(--gradient-1)';
+                }
+            };
+
+            // --- Fungsi Update Countdown Reset ---
+            const updateResetCountdown = () => {
+                const now = new Date();
+                const currentMonth = now.getMonth();
+                const currentYear = now.getFullYear();
+                
+                // Get first day of next month
+                const nextMonth = currentMonth === 11 ? 0 : currentMonth + 1;
+                const nextYear = currentMonth === 11 ? currentYear + 1 : currentYear;
+                const firstDayOfNextMonth = new Date(nextYear, nextMonth, 1);
+                
+                // Calculate days remaining
+                const msPerDay = 24 * 60 * 60 * 1000;
+                const daysRemaining = Math.ceil((firstDayOfNextMonth - now) / msPerDay);
+                
+                // Update countdown with animation
+                animateText(resetCountdown, `${daysRemaining} days Bucket Time Reset`);
+            };
+
+            const animateValue = (element, start, end, duration) => {
+                const range = end - start;
+                const increment = range / (duration / 16);
+                let current = start;
+                
+                const timer = setInterval(() => {
+                    current += increment;
+                    if ((increment > 0 && current >= end) || (increment < 0 && current <= end)) {
+                        element.textContent = `${end} Bucket Files Stored`;
+                        clearInterval(timer);
+                    } else {
+                        element.textContent = `${Math.floor(current)} Bucket Files Stored`;
+                    }
+                }, 16);
+            };
+            
+            const animateText = (element, newText) => {
+                element.style.opacity = '0';
+                setTimeout(() => {
+                    if (element.id === 'bucketSize') {
+                        element.textContent = `${newText} Bucket Size Stored`;
+                    } else if (element.id === 'remainingQuota') {
+                        element.textContent = `${newText} UnBucket Size Stored`;
+                    } else if (element.id === 'resetCountdown') {
+                        element.textContent = newText;
+                    }
+                    element.style.opacity = '1';
+                }, 300);
+            };
+
+            // --- FungSliding Windows ---
+            const createFileSlides = () => {
+                fileList.innerHTML = '';
+                sliderIndicators.innerHTML = '';
+                
+                if (filteredFiles.length === 0) {
+                    fileList.innerHTML = '<p class="text-center text-muted">No files found.</p>';
+                    fileSliderContainer.style.display = 'none';
+                    sliderControls.style.display = 'none';
+                    sliderIndicators.style.display = 'none';
+                    return;
+                }
+                
+                fileSliderContainer.style.display = 'block';
+                
+                // Calculate number of slides
+                const slideCount = Math.ceil(filteredFiles.length / filesPerSlide);
+                
+                // Create slides
+                for (let i = 0; i < slideCount; i++) {
+                    const slide = document.createElement('div');
+                    slide.className = 'file-slide';
+                    
+                    const startIdx = i * filesPerSlide;
+                    const endIdx = Math.min(startIdx + filesPerSlide, filteredFiles.length);
+                    
+                    for (let j = startIdx; j < endIdx; j++) {
+                        const file = filteredFiles[j];
+                        const fileCard = document.createElement('div');
+                        fileCard.className = 'file-card';
+                        fileCard.innerHTML = `
+                            <div class="file-card-header">
+                                <i class="fas ${getFileIcon(file.key)}"></i>
+                                <h5 class="file-card-title">${file.key}</h5>
+                            </div>
+                            <div class="file-card-body">
+                                <div class="meta-item">
+                                    <span>Size:</span>
+                                    <span>${formatFileSize(file.size)}</span>
+                                </div>
+                                <div class="meta-item">
+                                    <span>Modified:</span>
+                                    <span>${formatDate(file.last_modified)}</span>
+                                </div>
+                            </div>
+                            <div class="file-card-footer">
+                                <span class="download-count"><i class="fas fa-download"></i> ${file.download_count} times</span>
+                                <div>
+                                    <a href="${file.local_url}" target="_blank" class="btn btn-download btn-sm"><i class="fas fa-file-arrow-down"></i></a>
+                                    <button class="btn btn-copy btn-sm" onclick="copyToClipboard('${file.public_url}', this)"><i class="fas fa-arrow-up-from-bracket"></i></button>
+                                </div>
+                            </div>
+                        `;
+                        slide.appendChild(fileCard);
+                    }
+                    
+                    fileList.appendChild(slide);
+                    
+                    // Create indicator
+                    const indicator = document.createElement('div');
+                    indicator.className = 'indicator';
+                    if (i === 0) indicator.classList.add('active');
+                    indicator.addEventListener('click', () => goToSlide(i));
+                    sliderIndicators.appendChild(indicator);
+                }
+                
+                // Show controls if more than one slide
+                if (slideCount > 1) {
+                    sliderControls.style.display = 'flex';
+                    sliderIndicators.style.display = 'flex';
+                } else {
+                    sliderControls.style.display = 'none';
+                    sliderIndicators.style.display = 'none';
+                }
+                
+                // Reset to first slide
+                currentSlide = 0;
+                updateSlidePosition();
+            };
+            
+            const updateSlidePosition = () => {
+                fileList.style.transform = `translateX(-${currentSlide * 100}%)`;
+                
+                // Update indicators
+                const indicators = document.querySelectorAll('.indicator');
+                indicators.forEach((indicator, index) => {
+                    if (index === currentSlide) {
+                        indicator.classList.add('active');
+                    } else {
+                        indicator.classList.remove('active');
+                    }
+                });
+                
+                // Update button states
+                prevSlide.disabled = currentSlide === 0;
+                nextSlide.disabled = currentSlide === Math.ceil(filteredFiles.length / filesPerSlide) - 1;
+            };
+            
+            const goToSlide = (slideIndex) => {
+                currentSlide = slideIndex;
+                updateSlidePosition();
+            };
+            
+            // Event listeners for slider controls
+            prevSlide.addEventListener('click', () => {
+                if (currentSlide > 0) {
+                    currentSlide--;
+                    updateSlidePosition();
+                }
+            });
+            
+            nextSlide.addEventListener('click', () => {
+                if (currentSlide < Math.ceil(filteredFiles.length / filesPerSlide) - 1) {
+                    currentSlide++;
+                    updateSlidePosition();
+                }
+            });
+
+            // --- Event Listener Form---
+            uploadForm.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                if (!uploadForm.checkValidity()) {
+                    uploadForm.classList.add('was-validated');
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                
+                uploadButton.disabled = true;
+                uploadButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Uploading...';
+
+                try {
+                    const response = await fetch('/api/upload', { method: 'POST', body: formData });
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        uploadForm.reset();
+                        uploadForm.classList.remove('was-validated');
+                        fetchAndDisplayFiles();
+                    } else {
+                        alert(`Error: ${result.error}`);
+                    }
+                } catch (error) {
+                    alert('An error occurred. Please try again.');
+                } finally {
+                    uploadButton.disabled = false;
+                    uploadButton.innerHTML = '<i class="fas fa-cloud-upload-alt me-2"></i>Upload File';
+                }
+            });
+
+            // --- Event Listener Modal ---
+            fabButton.addEventListener('click', () => {
+                uploadModal.classList.add('show');
+            });
+            
+            modalClose.addEventListener('click', () => {
+                uploadModal.classList.remove('show');
+            });
+            
+            modalUploadForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                if (!modalFileInput.files.length) {
+                    showNotification('Please select a file to upload', 'error');
+                    return;
+                }
+                
+                const file = modalFileInput.files[0];
+                
+                // Add file to the list
+                const newFile = {
+                    key: file.name,
+                    size: file.size,
+                    last_modified: new Date().toISOString(),
+                    local_url: '#',
+                    public_url: '#',
+                    download_count: 0
+                };
+                
+                allFiles.unshift(newFile);
+                filteredFiles = [...allFiles];
+                createFileSlides();
+                updateBucketStats(allFiles);
+                
+                // Reset form and close modal
+                modalUploadForm.reset();
+                uploadModal.classList.remove('show');
+                
+                // Show success notification
+                showNotification(`${file.name} uploaded successfully!`, 'success');
+            });
+            
+            // Close modal when clicking outside
+            uploadModal.addEventListener('click', (e) => {
+                if (e.target === uploadModal) {
+                    uploadModal.classList.remove('show');
+                }
+            });
+
+            window.copyToClipboard = (text, buttonElement) => {
+                navigator.clipboard.writeText(text).then(() => {
+                    const originalHtml = buttonElement.innerHTML;
+                    buttonElement.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                    setTimeout(() => { buttonElement.innerHTML = originalHtml; }, 2000);
+                }).catch(err => console.error('Failed to copy: ', err));
+            };
+
+            searchInput.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase();
+                
+                if (searchTerm === '') {
+                    filteredFiles = [...allFiles];
+                } else {
+                    filteredFiles = allFiles.filter(file => 
+                        file.key.toLowerCase().includes(searchTerm)
+                    );
+                }
+                
+                createFileSlides();
+            });
+
+            const showNotification = (message, type = 'info') => {
+                const notification = document.getElementById('notification');
+                notification.textContent = message;
+                notification.className = `notification ${type}`;
+                notification.classList.add('show');
+                
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 3000);
+            };
+
+            const fetchAndDisplayFiles = async () => {
+                try {
+                    loadingMessage.style.display = 'block';
+                    fileSliderContainer.style.display = 'none';
+                    
+                    // Try to fetch from API first
+                    try {
+                        const response = await fetch('/api/files');
+                        const result = await response.json();
+                        
+                        allFiles = result.files || [];
+                        filteredFiles = [...allFiles];
+                        
+                        createFileSlides();
+                        updateBucketStats(result.stats || {
+                            formatted_size: "0 Bytes",
+                            formatted_remaining: "10 GB",
+                            total_size: 0
+                        });
+                    } catch (apiError) {
+                        // If API fails, use sample data
+                        console.log('Using sample data for demonstration');
+                        allFiles = [...sampleFiles];
+                        filteredFiles = [...allFiles];
+                        
+                        createFileSlides();
+                        updateBucketStats(allFiles);
+                    }
+                    
+                    loadingMessage.style.display = 'none';
+                } catch (error) {
+                    loadingMessage.textContent = `Error: ${error.message}`;
+                    loadingMessage.style.color = 'var(--error-color)';
+                }
+            };
+
+            // Initialize
+            fetchAndDisplayFiles();
+            updateResetCountdown();
+            
+            // Update countdown every day
+            setInterval(updateResetCountdown, 24 * 60 * 60 * 1000);
+        });
+    </script>
 </body>
 </html>
