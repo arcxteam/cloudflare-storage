@@ -239,17 +239,15 @@ def list_files():
     try:
         objects = s3_client.list_objects_v2(Bucket=R2_BUCKET_NAME)
         if 'Contents' not in objects:
-            response = jsonify({"files": [], "stats": get_bucket_stats()})
-            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-            response.headers['Pragma'] = 'no-cache'
-            response.headers['Expires'] = '0'
-            return response, 200
+            return jsonify({"files": [], "stats": get_bucket_stats()}), 200
         
         download_counts = get_download_counts()
         file_list = []
         for obj in objects['Contents']:
             file_list.append({
-                "key": obj['Key'], "last_modified": obj['LastModified'].isoformat(), "size": obj['Size'],
+                "key": obj['Key'], 
+                "last_modified": obj['LastModified'].isoformat(), 
+                "size": obj['Size'],
                 "local_url": f"{PUBLIC_BASE_URL}/files/{obj['Key']}",
                 "public_url": f"{R2_PUBLIC_URL}/{obj['Key']}",
                 "download_count": download_counts.get(obj['Key'], 0)
@@ -257,16 +255,12 @@ def list_files():
             
         file_list.sort(key=lambda x: x['last_modified'], reverse=True)
         
-        response = jsonify({"files": file_list, "stats": get_bucket_stats()})
-        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '0'
-        return response, 200
+        return jsonify({"files": file_list, "stats": get_bucket_stats()}), 200
 
     except Exception as e:
         app.logger.error(f"List files error: {e}")
         return jsonify({"error": f"Failed to fetch file list: {str(e)}"}), 500
-        
+
 # === DOWNLOAD FILE & INCREMENT COUNT ===
 @app.route('/api/serve-file/<path:filename>', methods=['GET'])
 def serve_file(filename):
