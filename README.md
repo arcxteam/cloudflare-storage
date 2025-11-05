@@ -7,10 +7,10 @@
 > **© Greyscope&Co | 0xgrey** resulting in a compactibility and intuitive storage clouding but securing. The project not only meets current needs but also anticipates personal requirements, ensuring a seamless and secure user experience.
 
 
-## Preview WebUI Dashboard 
+## Preview Frontend Web UI Dashboard
 > https://arcxteam.github.io/cloudflare-storage/frontend/
 
-<h2 style="text-align: center;">A Comprehensive Guide: How to Set Up Private Storage with Cloudflare R2 Bucket and S3 API Compatibility</h2>
+### A Comprehensive Guide: How to Set Up Private Storage with Cloudflare R2 Bucket and S3 API Compatibility
 
 ## **Structure Folder & File**
 
