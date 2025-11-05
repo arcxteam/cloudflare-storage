@@ -34,102 +34,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Sample data testing ---
     const sampleFiles = [
-        {
-            key: 'A1_presentation.pdf',
-            size: 2546576,
-            last_modified: new Date().toISOString(),
-            local_url: '#',
-            public_url: '#',
-            download_count: 42
-        },
-        {
-            key: 'project-proposal.docx',
-            size: 1150976,
-            last_modified: new Date(Date.now() - 86400000).toISOString(),
-            local_url: '#',
-            public_url: '#',
-            download_count: 18
-        },
-        {
-            key: 'team-photo.png',
-            size: 3879731,
-            last_modified: new Date(Date.now() - 172800000).toISOString(),
-            local_url: '#',
-            public_url: '#',
-            download_count: 27
-        },
-        {
-            key: 'demo-video.mp4',
-            size: 15938355,
-            last_modified: new Date(Date.now() - 259200000).toISOString(),
-            local_url: '#',
-            public_url: '#',
-            download_count: 35
-        },
-        {
-            key: 'annual_report.xlsx',
-            size: 876544,
-            last_modified: new Date(Date.now() - 345600000).toISOString(),
-            local_url: '#',
-            public_url: '#',
-            download_count: 12
-        },
-        {
-            key: 'data_file.json',
-            size: 2156789,
-            last_modified: new Date(Date.now() - 432000000).toISOString(),
-            local_url: '#',
-            public_url: '#',
-            download_count: 23
-        },
-        {
-            key: 'budget-2025.zip',
-            size: 3456789,
-            last_modified: new Date(Date.now() - 518400000).toISOString(),
-            local_url: '#',
-            public_url: '#',
-            download_count: 45
-        },
-        {
-            key: 'signer-contract.txt',
-            size: 567890,
-            last_modified: new Date(Date.now() - 604800000).toISOString(),
-            local_url: '#',
-            public_url: '#',
-            download_count: 8
-        },
-        {
-            key: 'ohlc_BTC_1M.csv',
-            size: 25678901,
-            last_modified: new Date(Date.now() - 691200000).toISOString(),
-            local_url: '#',
-            public_url: '#',
-            download_count: 67
-        },
-        {
-            key: 'brand-presentation.ppt',
-            size: 4567890,
-            last_modified: new Date(Date.now() - 777600000).toISOString(),
-            local_url: '#',
-            public_url: '#',
-            download_count: 34
-        },
-        {
-            key: 'readme.md',
-            size: 1234567,
-            last_modified: new Date(Date.now() - 864000000).toISOString(),
-            local_url: '#',
-            public_url: '#',
-            download_count: 19
-        },
-        {
-            key: 'prototype-design.dwg',
-            size: 9876543,
-            last_modified: new Date(Date.now() - 950400000).toISOString(),
-            local_url: '#',
-            public_url: '#',
-            download_count: 56
-        }
+        { key: 'A1_presentation.pdf', size: 2546576, last_modified: new Date().toISOString(), local_url: '#', public_url: '#', download_count: 42 },
+        { key: 'project-proposal.docx', size: 1150976, last_modified: new Date(Date.now() - 86400000).toISOString(), local_url: '#', public_url: '#', download_count: 18 },
+        { key: 'team-photo.png', size: 3879731, last_modified: new Date(Date.now() - 172800000).toISOString(), local_url: '#', public_url: '#', download_count: 27 },
+        { key: 'demo-video.mp4', size: 159383556, last_modified: new Date(Date.now() - 259200000).toISOString(), local_url: '#', public_url: '#', download_count: 35 },
+        { key: 'annual_report.xlsx', size: 876544, last_modified: new Date(Date.now() - 345600000).toISOString(), local_url: '#', public_url: '#', download_count: 12 },
+        { key: 'data_file.json', size: 21567896, last_modified: new Date(Date.now() - 432000000).toISOString(), local_url: '#', public_url: '#', download_count: 23 },
+        { key: 'budget-2025.zip', size: 345678965, last_modified: new Date(Date.now() - 518400000).toISOString(), local_url: '#', public_url: '#', download_count: 45 },
+        { key: 'signer-contract.txt', size: 567890, last_modified: new Date(Date.now() - 604800000).toISOString(), local_url: '#', public_url: '#', download_count: 8 },
+        { key: 'ohlc_BTC_1M.csv', size: 256789011, last_modified: new Date(Date.now() - 691200000).toISOString(), local_url: '#', public_url: '#', download_count: 67 },
+        { key: 'brand-presentation.ppt', size: 4567890, last_modified: new Date(Date.now() - 777600000).toISOString(), local_url: '#', public_url: '#', download_count: 34 },
+        { key: 'readme.md', size: 1234567, last_modified: new Date(Date.now() - 864000000).toISOString(), local_url: '#', public_url: '#', download_count: 19 },
+        { key: 'prototype-design.dwg', size: 987654366, last_modified: new Date(Date.now() - 950400000).toISOString(), local_url: '#', public_url: '#', download_count: 56 }
     ];
 
     // --- Funct Utility ---
@@ -165,25 +81,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Funct Update Statistic Bucket ---
     const updateBucketStats = (stats) => {
-        // Update total files count (cumulative, never resets)
         animateValue(fileCount, parseInt(fileCount.textContent) || 0, stats.total_files, 1000);
-        
-        // Update current period size (resets monthly)
         animateText(bucketSize, stats.formatted_current_period_size);
-        
-        // Update remaining quota (resets monthly)
         animateText(remainingQuota, stats.formatted_remaining);
-        
-        // Update countdown to reset (resets monthly)
         animateText(resetCountdown, `${stats.days_until_reset} days Bucket Time Reset`);
         
-        // Update progress bar based on current period usage
-        const quotaLimit = 10 * 1024 * 1024 * 1024; // 10GB in bytes
+        const quotaLimit = 10 * 1024 * 1024 * 1024;
         const usedPercentage = (stats.current_period_size / quotaLimit) * 100;
         quotaProgress.style.width = `${usedPercentage}%`;
         quotaText.textContent = `${usedPercentage.toFixed(2)}% of 10GB used`;
         
-        // Change color based on usage
         if (usedPercentage > 90) {
             quotaProgress.style.background = 'linear-gradient(to right, #e74c3c, #c0392b)';
         } else if (usedPercentage > 70) {
@@ -218,7 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (element.id === 'remainingQuota') {
                 element.textContent = `${newText} UnBucket Size Stored`;
             } else if (element.id === 'resetCountdown') {
-                element.textContent = newText;
+                element.innerHTML = newText;
             }
             element.style.opacity = '1';
         }, 300);
@@ -253,6 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const file = filteredFiles[j];
                 const fileCard = document.createElement('div');
                 fileCard.className = 'file-card';
+                
                 fileCard.innerHTML = `
                     <div class="file-card-header">
                         <i class="fas ${getFileIcon(file.key)}"></i>
@@ -271,8 +179,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="file-card-footer">
                         <span class="download-count"><i class="fas fa-download"></i> ${file.download_count} times</span>
                         <div>
-                            <a href="${file.local_url}" target="_blank" class="btn btn-download btn-sm"><i class="fas fa-file-arrow-down"></i></a>
-                            <button class="btn btn-copy btn-sm" onclick="copyToClipboard('${file.public_url}', this)"><i class="fas fa-arrow-up-from-bracket"></i></button>
+                            <button class="btn btn-download btn-sm" data-filename="${file.key}"><i class="fas fa-file-arrow-down"></i></button>
+                            <button class="btn btn-copy btn-sm" data-filename="${file.key}" data-public-url="${file.public_url}"><i class="fas fa-arrow-up-from-bracket"></i></button>
                         </div>
                     </div>
                 `;
@@ -281,7 +189,6 @@ document.addEventListener('DOMContentLoaded', () => {
             
             fileList.appendChild(slide);
             
-            // Indicator
             const indicator = document.createElement('div');
             indicator.className = 'indicator';
             if (i === currentSlide) indicator.classList.add('active');
@@ -298,6 +205,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         updateSlidePosition();
+        
+        document.querySelectorAll('.btn-download').forEach(button => {
+            button.addEventListener('click', handleDownloadClick);
+        });
+        document.querySelectorAll('.btn-copy').forEach(button => {
+            button.addEventListener('click', handleCopyClick);
+        });
     };
 
     const updateSlidePosition = () => {
@@ -329,7 +243,52 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentSlide < totalSlides - 1) goToSlide(currentSlide + 1);
     });
 
-    // --- Upload Progress Bar ---
+    // --- Function handle download/copy ---
+    const handleFileAction = async (filename, publicUrl, action) => {
+        console.log('handleFileAction called with:', { filename, publicUrl, action });
+        // ------------------------------------
+    
+        try {
+            if (action === 'download') {
+                const downloadUrl = `/api/serve-file/${encodeURIComponent(filename)}`;
+                console.log('Final download URL:', downloadUrl);
+            
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = downloadUrl;
+                a.setAttribute('download', filename);
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            
+            } else if (action === 'copy') {
+                await navigator.clipboard.writeText(publicUrl);
+                showNotification('Link copied!', 'success');
+            }
+
+            fetchAndDisplayFiles();
+
+        } catch (error) {
+            console.error('Action failed:', error);
+            showNotification('Action failed. Please try again.', 'error');
+        }
+    };
+    
+    // --- Event handlers for download/copy buttons ---
+    const handleDownloadClick = async (e) => {
+        const button = e.currentTarget;
+        const filename = button.dataset.filename;
+        await handleFileAction(filename, null, 'download');
+    };
+
+    const handleCopyClick = async (e) => {
+        const button = e.currentTarget;
+        const filename = button.dataset.filename;
+        const publicUrl = button.dataset.publicUrl;
+        await handleFileAction(filename, publicUrl, 'copy');
+    };
+
+    // --- Upload progress bar ---
     const uploadFileXHR = (file, callback) => {
         const formData = new FormData();
         formData.append('file', file);
@@ -351,24 +310,35 @@ document.addEventListener('DOMContentLoaded', () => {
             progressBar.textContent = '0%';
 
             if (xhr.status === 200) {
-                const result = JSON.parse(xhr.responseText);
-                callback(null, result);
+                try {
+                    const result = JSON.parse(xhr.responseText);
+                    callback(null, result);
+                } catch (e) {
+                    callback('Invalid response from server.');
+                }
             } else {
-                const error = JSON.parse(xhr.responseText);
-                callback(error.error || 'Upload failed');
+                let errorMessage = `Upload failed with status: ${xhr.status}`;
+                if (xhr.status === 413) {
+                    errorMessage = 'File is too large. Please try a smaller file or contact support.';
+                }
+                try {
+                    const errorData = JSON.parse(xhr.responseText);
+                    errorMessage = errorData.error || errorMessage;
+                } catch (e) {}
+                callback(errorMessage);
             }
         };
 
         xhr.onerror = () => {
             progressContainer.style.display = 'none';
-            callback('Network error');
+            callback('Network error. Please check your connection.');
         };
 
         xhr.open('POST', '/api/upload', true);
         xhr.send(formData);
     };
 
-    // --- Event Listener Upload Form ---
+    // --- Event listener upload form ---
     uploadForm.addEventListener('submit', (e) => {
         e.preventDefault();
         if (!uploadForm.checkValidity()) {
@@ -394,7 +364,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- Event Listener Modal Upload ---
+    // --- Event listener modal upload ---
     modalUploadForm.addEventListener('submit', (e) => {
         e.preventDefault();
         if (!modalFileInput.files.length) {
@@ -416,7 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- Event Listener Modal Controls ---
+    // --- Event listener modal controls ---
     fabButton.addEventListener('click', () => {
         uploadModal.classList.add('show');
     });
@@ -430,15 +400,6 @@ document.addEventListener('DOMContentLoaded', () => {
             uploadModal.classList.remove('show');
         }
     });
-
-    // --- Funct copied link ---
-    window.copyToClipboard = (text, buttonElement) => {
-        navigator.clipboard.writeText(text).then(() => {
-            const originalHtml = buttonElement.innerHTML;
-            buttonElement.innerHTML = '<i class="fas fa-check"></i> Copied!';
-            setTimeout(() => { buttonElement.innerHTML = originalHtml; }, 2000);
-        }).catch(err => console.error('Failed to copy: ', err));
-    };
 
     // --- Funct searching ---
     searchInput.addEventListener('input', (e) => {
