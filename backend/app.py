@@ -2,12 +2,15 @@ import os
 import uuid
 import json
 import math
+import logging
 from datetime import datetime, timedelta
-from flask import Flask, request, jsonify, send_from_directory, send_file
+from flask import Flask, request, jsonify, send_from_directory, send_file, redirect
 from dotenv import load_dotenv
 import boto3
 from botocore.exceptions import NoCredentialsError, ClientError
 from io import BytesIO
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 load_dotenv()
 
@@ -25,7 +28,7 @@ PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://localhost").rstrip('/')
 DOWNLOAD_COUNT_FILE = 'data/download_counts.json'
 UPLOAD_HISTORY_FILE = 'data/upload_history.json'
 
-# S3-Compatible Client
+# === S3-R2 COMPATIBLE CLIENT ===
 s3_client = boto3.client(
     's3',
     endpoint_url=R2_ENDPOINT_URL,
@@ -36,6 +39,7 @@ s3_client = boto3.client(
 
 # === HELPER FUNCTIONS ===
 def get_download_counts():
+    """Read file JSON for counting any downloaded."""
     if not os.path.exists(DOWNLOAD_COUNT_FILE):
         return {}
     try:
@@ -45,6 +49,7 @@ def get_download_counts():
         return {}
 
 def increment_download_count(filename):
+    """Counting be ready accumulative total download file."""
     counts = get_download_counts()
     counts[filename] = counts.get(filename, 0) + 1
     try:
@@ -84,6 +89,7 @@ def get_days_until_reset():
     return (next_month - now).days
 
 def format_file_size(bytes):
+    """Format size file in data directory storage."""
     if bytes == 0:
         return "0 Bytes"
     k = 1024
@@ -94,17 +100,14 @@ def format_file_size(bytes):
     return f"{round(bytes / math.pow(k, i), 2)} {sizes[i]}"
 
 def get_bucket_stats():
+    """Counting a total size file & limit kuota R2."""
     try:
         objects = s3_client.list_objects_v2(Bucket=R2_BUCKET_NAME)
         if 'Contents' not in objects:
             return {
-                "total_files": 0,
-                "total_size": 0,
-                "formatted_total_size": "0 Bytes",
-                "current_period_size": 0,
-                "formatted_current_period_size": "0 Bytes",
-                "remaining_quota": 10 * 1024 * 1024 * 1024,
-                "formatted_remaining": "10 GB",
+                "total_files": 0, "total_size": 0, "formatted_total_size": "0 Bytes",
+                "current_period_size": 0, "formatted_current_period_size": "0 Bytes",
+                "remaining_quota": 10 * 1024 * 1024 * 1024, "formatted_remaining": "10 GB",
                 "days_until_reset": get_days_until_reset()
             }
         
@@ -120,7 +123,6 @@ def get_bucket_stats():
             total_size += file_size
             file_key = obj['Key']
             
-            # Cek upload di periode ini
             if file_key in upload_history:
                 try:
                     upload_date = datetime.fromisoformat(upload_history[file_key])
@@ -140,25 +142,17 @@ def get_bucket_stats():
         remaining_quota = max(0, quota_limit - current_period_size)
         
         return {
-            "total_files": total_files,
-            "total_size": total_size,
-            "formatted_total_size": format_file_size(total_size),
-            "current_period_size": current_period_size,
-            "formatted_current_period_size": format_file_size(current_period_size),
-            "remaining_quota": remaining_quota,
-            "formatted_remaining": format_file_size(remaining_quota),
+            "total_files": total_files, "total_size": total_size, "formatted_total_size": format_file_size(total_size),
+            "current_period_size": current_period_size, "formatted_current_period_size": format_file_size(current_period_size),
+            "remaining_quota": remaining_quota, "formatted_remaining": format_file_size(remaining_quota),
             "days_until_reset": get_days_until_reset()
         }
     except Exception as e:
         app.logger.error(f"Bucket stats error: {e}")
         return {
-            "total_files": 0,
-            "total_size": 0,
-            "formatted_total_size": "0 Bytes",
-            "current_period_size": 0,
-            "formatted_current_period_size": "0 Bytes",
-            "remaining_quota": 10 * 1024 * 1024 * 1024,
-            "formatted_remaining": "10 GB",
+            "total_files": 0, "total_size": 0, "formatted_total_size": "0 Bytes",
+            "current_period_size": 0, "formatted_current_period_size": "0 Bytes",
+            "remaining_quota": 10 * 1024 * 1024 * 1024, "formatted_remaining": "10 GB",
             "days_until_reset": get_days_until_reset()
         }
 
@@ -175,10 +169,12 @@ def static_files(filename):
 @app.route('/api/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
+        app.logger.warning("Upload request failed: No file part in request")
         return jsonify({"error": "No file part"}), 400
     
     file = request.files['file']
     if file.filename == '':
+        app.logger.warning("Upload request failed: No selected file")
         return jsonify({"error": "No selected file"}), 400
 
     try:
@@ -188,38 +184,44 @@ def upload_file():
         while True:
             try:
                 s3_client.head_object(Bucket=R2_BUCKET_NAME, Key=key)
+                app.logger.info(f"File with key '{key}' already exists. Generating a new name.")
                 name, ext = os.path.splitext(original_filename)
                 key = f"{name} ({counter}){ext}"
                 counter += 1
             except ClientError as e:
                 if e.response['Error']['Code'] == '404':
+                    app.logger.info(f"Using unique key for upload: '{key}'")
                     break
                 else:
                     raise
 
-        # STREAMING R2
+        # STREAMING R2 W/ MULTIPART 10MB
         file.stream.seek(0)
+        app.logger.info(f"Attempting to upload '{key}' to R2 bucket '{R2_BUCKET_NAME}'")
         s3_client.upload_fileobj(
             file.stream,
             R2_BUCKET_NAME,
             key,
             ExtraArgs={'ContentType': file.content_type or 'application/octet-stream'},
             Config=boto3.s3.transfer.TransferConfig(
-                multipart_threshold=1024*20,
+                multipart_threshold=1024 * 1024 * 10,  # 10MB threshold
                 max_concurrency=10,
-                multipart_chunksize=1024*25,
+                multipart_chunksize=1024 * 1024 * 10, # 10MB chunk size
                 use_threads=True
             )
         )
+        app.logger.info(f"Successfully uploaded '{key}' to R2.")
 
-        # Save history
+        app.logger.info(f"Saving upload history for '{key}'.")
         upload_history = get_upload_history()
         upload_history[key] = datetime.now().isoformat()
         save_upload_history(upload_history)
+        app.logger.info(f"Upload history saved successfully.")
         
         local_proxy_url = f"{PUBLIC_BASE_URL}/files/{key}"
         public_r2_url = f"{R2_PUBLIC_URL}/{key}"
         
+        app.logger.info(f"Upload process completed successfully for '{key}'.")
         return jsonify({
             "message": "File uploaded successfully!",
             "filename": key,
@@ -228,7 +230,7 @@ def upload_file():
         }), 200
 
     except Exception as e:
-        app.logger.error(f"Upload error: {e}")
+        app.logger.error(f"Upload failed for file '{original_filename}': {e}", exc_info=True)
         return jsonify({"error": f"Upload failed: {str(e)}"}), 500
 
 # === LIST FILES: DOWNLOAD COUNT & STATS ===
@@ -237,18 +239,17 @@ def list_files():
     try:
         objects = s3_client.list_objects_v2(Bucket=R2_BUCKET_NAME)
         if 'Contents' not in objects:
-            return jsonify({
-                "files": [],
-                "stats": get_bucket_stats()
-            }), 200
+            response = jsonify({"files": [], "stats": get_bucket_stats()})
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+            return response, 200
         
         download_counts = get_download_counts()
         file_list = []
         for obj in objects['Contents']:
             file_list.append({
-                "key": obj['Key'],
-                "last_modified": obj['LastModified'].isoformat(),
-                "size": obj['Size'],
+                "key": obj['Key'], "last_modified": obj['LastModified'].isoformat(), "size": obj['Size'],
                 "local_url": f"{PUBLIC_BASE_URL}/files/{obj['Key']}",
                 "public_url": f"{R2_PUBLIC_URL}/{obj['Key']}",
                 "download_count": download_counts.get(obj['Key'], 0)
@@ -256,21 +257,25 @@ def list_files():
             
         file_list.sort(key=lambda x: x['last_modified'], reverse=True)
         
-        return jsonify({
-            "files": file_list,
-            "stats": get_bucket_stats()
-        }), 200
+        response = jsonify({"files": file_list, "stats": get_bucket_stats()})
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response, 200
 
     except Exception as e:
         app.logger.error(f"List files error: {e}")
         return jsonify({"error": f"Failed to fetch file list: {str(e)}"}), 500
-
-# === DOWNLOAD: INCREMENT COUNT + STREAMING ===
-@app.route('/files/<path:filename>')
+        
+# === DOWNLOAD FILE & INCREMENT COUNT ===
+@app.route('/api/serve-file/<path:filename>', methods=['GET'])
 def serve_file(filename):
     try:
-        increment_download_count(filename)
+        app.logger.info(f"Received download request for file: {filename}")
         
+        increment_download_count(filename)
+        app.logger.info(f"Successfully incremented count for file: {filename}")
+
         file_obj = s3_client.get_object(Bucket=R2_BUCKET_NAME, Key=filename)
         file_stream = BytesIO(file_obj['Body'].read())
         file_stream.seek(0)
@@ -279,14 +284,16 @@ def serve_file(filename):
             file_stream,
             download_name=filename,
             mimetype=file_obj.get('ContentType', 'application/octet-stream'),
-            as_attachment=False
+            as_attachment=True  # "Save As"
         )
     except ClientError as e:
         if e.response['Error']['Code'] == 'NoSuchKey':
+            app.logger.error(f"File not found: {filename}")
             return jsonify({"error": "File not found"}), 404
+        app.logger.error(f"R2 access error for {filename}: {e}")
         return jsonify({"error": "File access failed"}), 500
     except Exception as e:
-        app.logger.error(f"Download error: {e}")
+        app.logger.error(f"Download error for {filename}: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
 
 # === HEALTH CHECK ===
@@ -294,7 +301,6 @@ def serve_file(filename):
 def health_check():
     return jsonify({"status": "healthy"}), 200
 
-# === INIT DATA DIR ===
 if __name__ == '__main__':
     os.makedirs('data', exist_ok=True)
     app.run(host='0.0.0.0', port=5000, debug=False)
