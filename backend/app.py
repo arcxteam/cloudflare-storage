@@ -156,6 +156,16 @@ def get_bucket_stats():
             "days_until_reset": get_days_until_reset()
         }
 
+def stream_r2_file(key):
+    """Stream file from R2 within chunk-by-chunk (1MB)"""
+    try:
+        obj = s3_client.get_object(Bucket=R2_BUCKET_NAME, Key=key)
+        for chunk in obj['Body'].iter_chunks(chunk_size=1024 * 1024):
+            yield chunk
+    except Exception as e:
+        app.logger.error(f"Stream generator error for {key}: {e}")
+        yield b""
+
 # === ROUTES ===
 @app.route('/')
 def index():
@@ -265,32 +275,40 @@ def list_files():
 @app.route('/api/serve-file/<path:filename>', methods=['GET'])
 def serve_file(filename):
     try:
-        app.logger.info(f"Received download request for file: {filename}")
-        # debug
-        app.logger.info(f"Encoded filename: {filename}")
-        
-        increment_download_count(filename)
-        app.logger.info(f"Successfully incremented count for file: {filename}")
+        app.logger.info(f"[DOWNLOAD] Request: {filename}")
 
-        file_obj = s3_client.get_object(Bucket=R2_BUCKET_NAME, Key=filename)
-        file_stream = BytesIO(file_obj['Body'].read())
-        file_stream.seek(0)
-        
-        return send_file(
-            file_stream,
-            download_name=filename,
-            mimetype=file_obj.get('ContentType', 'application/octet-stream'),
-            as_attachment=True
+        # Cek file ada + ambil metadata
+        head = s3_client.head_object(Bucket=R2_BUCKET_NAME, Key=filename)
+        content_type = head.get('ContentType', 'application/octet-stream')
+        content_length = head['ContentLength']
+
+        # Increment count
+        increment_download_count(filename)
+        app.logger.info(f"[DOWNLOAD] Count incremented for: {filename}")
+
+        # Stream langsung dari R2 (tidak pakai BytesIO)
+        return Response(
+            stream_r2_file(filename),
+            headers={
+                'Content-Type': content_type,
+                'Content-Disposition': f'attachment; filename="{filename}"',
+                'Content-Length': str(content_length),
+                'Cache-Control': 'no-store, no-cache, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            },
+            status=200
         )
+
     except ClientError as e:
         error_code = e.response['Error']['Code']
-        app.logger.error(f"ClientError for {filename}: {error_code} - {e}")
-        if error_code == 'NoSuchKey':
-            return jsonify({"error": "File not found in R2. Check key: " + filename}), 404
-        return jsonify({"error": "R2 access failed: " + str(e)}), 500
+        app.logger.error(f"[404] ClientError for {filename}: {error_code}")
+        if error_code in ['404', 'NoSuchKey']:
+            return jsonify({"error": "File not found"}), 404
+        return jsonify({"error": "R2 access error"}), 500
     except Exception as e:
-        app.logger.error(f"Download error for {filename}: {e}", exc_info=True)
-        return jsonify({"error": "Internal server error: " + str(e)}), 500
+        app.logger.error(f"[500] Download failed: {e}", exc_info=True)
+        return jsonify({"error": "Server error"}), 500
 
 # === HEALTH CHECK ===
 @app.route('/health')
