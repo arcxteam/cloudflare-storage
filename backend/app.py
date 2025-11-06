@@ -4,7 +4,7 @@ import json
 import math
 import logging
 from datetime import datetime, timedelta
-from flask import Flask, request, jsonify, send_from_directory, send_file, redirect
+from flask import Flask, request, jsonify, send_from_directory, send_file, redirect, Response
 from dotenv import load_dotenv
 import boto3
 from botocore.exceptions import NoCredentialsError, ClientError
@@ -156,15 +156,16 @@ def get_bucket_stats():
             "days_until_reset": get_days_until_reset()
         }
 
+# === DOWNLOAD: STREAMING R2 ===
 def stream_r2_file(key):
-    """Stream file from R2 within chunk-by-chunk (1MB)"""
+    """Stream file from R2 with chunk-by-chunk 1MB"""
     try:
         obj = s3_client.get_object(Bucket=R2_BUCKET_NAME, Key=key)
         for chunk in obj['Body'].iter_chunks(chunk_size=1024 * 1024):
             yield chunk
     except Exception as e:
         app.logger.error(f"Stream generator error for {key}: {e}")
-        yield b""
+        yield b""  # blank if error
 
 # === ROUTES ===
 @app.route('/')
@@ -271,22 +272,23 @@ def list_files():
         app.logger.error(f"List files error: {e}")
         return jsonify({"error": f"Failed to fetch file list: {str(e)}"}), 500
 
-# === DOWNLOAD FILE & INCREMENT COUNT ===
+# === DOWNLOAD FILE & INCREMENT COUNT STREAM R2 ===
 @app.route('/api/serve-file/<path:filename>', methods=['GET'])
 def serve_file(filename):
     try:
-        app.logger.info(f"[DOWNLOAD] Request: {filename}")
-
-        # Cek file ada + ambil metadata
+        app.logger.info(f"Received download request for file: {filename}")
+        # Debug
+        app.logger.info(f"Encoded filename: {filename}")
+        
         head = s3_client.head_object(Bucket=R2_BUCKET_NAME, Key=filename)
         content_type = head.get('ContentType', 'application/octet-stream')
         content_length = head['ContentLength']
+        app.logger.info(f"File metadata: {content_type}, size: {content_length}")
 
         # Increment count
         increment_download_count(filename)
-        app.logger.info(f"[DOWNLOAD] Count incremented for: {filename}")
+        app.logger.info(f"Successfully incremented count for file: {filename}")
 
-        # Stream langsung dari R2 (tidak pakai BytesIO)
         return Response(
             stream_r2_file(filename),
             headers={
@@ -299,16 +301,15 @@ def serve_file(filename):
             },
             status=200
         )
-
     except ClientError as e:
         error_code = e.response['Error']['Code']
-        app.logger.error(f"[404] ClientError for {filename}: {error_code}")
-        if error_code in ['404', 'NoSuchKey']:
-            return jsonify({"error": "File not found"}), 404
-        return jsonify({"error": "R2 access error"}), 500
+        app.logger.error(f"ClientError for {filename}: {error_code} - {e}")
+        if error_code == 'NoSuchKey':
+            return jsonify({"error": "File not found in R2. Check key: " + filename}), 404
+        return jsonify({"error": "R2 access failed: " + str(e)}), 500
     except Exception as e:
-        app.logger.error(f"[500] Download failed: {e}", exc_info=True)
-        return jsonify({"error": "Server error"}), 500
+        app.logger.error(f"Download error for {filename}: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error: " + str(e)}), 500
 
 # === HEALTH CHECK ===
 @app.route('/health')
