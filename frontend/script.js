@@ -1,3 +1,4 @@
+// Update for script.js v1.0.8
 document.addEventListener('DOMContentLoaded', () => {
     const uploadForm = document.getElementById('uploadForm');
     const fileInput = document.getElementById('fileInput');
@@ -32,9 +33,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let filteredFiles = [];
     const filesPerSlide = 6;
 
-    // --- Sample data testing --- [DIPERBAIKI: HAPUS SELURUH SAMPLE DATA]
-    // (Tidak ada lagi fallback ke sample)
-
     // --- Funct Utility ---
     const formatFileSize = (bytes) => {
         if (bytes === 0) return '0 Bytes';
@@ -61,7 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'html': 'fa-file-code', 'yml': 'fa-file-code', 'sol': 'fa-file-code', 'ts': 'fa-file-code',
             'json': 'fa-file-code', 'php': 'fa-file-code', 'java': 'fa-file-code', 'rb': 'fa-file-code',
             'ipynb': 'fa-file-code', 'cpp': 'fa-file-code', 'go': 'fa-file-code', 'md': 'fa-file-shield',
-            'txt': 'fa-file-contract', 'dwg': 'fa-file-fragment'
+            'txt': 'fa-file-contract', 'dwg': 'fa-file-fragment', 'ico': 'fa-file-image', 'heif': 'fa-file-video',
         };
         return iconMap[ext] || 'fa-file';
     };
@@ -118,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 300);
     };
 
-    // --- Function sliding windows ---
+    // --- Function sliding windows — FIX KOSONG + ANIMASI ---
     const createFileSlides = () => {
         fileList.innerHTML = '';
         sliderIndicators.innerHTML = '';
@@ -135,15 +133,12 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const slideCount = Math.ceil(filteredFiles.length / filesPerSlide);
         
-        // DIPERBAIKI: Reset currentSlide jika melebihi batas slide (hindari slide kosong)
-        if (currentSlide >= slideCount) {
-            currentSlide = Math.max(0, slideCount - 1);
-        }
+        // SELALU RESET KE SLIDE PERTAMA
+        currentSlide = 0;
         
         for (let i = 0; i < slideCount; i++) {
             const slide = document.createElement('div');
             slide.className = 'file-slide';
-            if (i === currentSlide) slide.classList.add('active');
             
             const startIdx = i * filesPerSlide;
             const endIdx = Math.min(startIdx + filesPerSlide, filteredFiles.length);
@@ -155,7 +150,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 fileCard.innerHTML = `
                     <div class="file-card-header">
-                        <!-- DIPERBAIKI: Kembalikan icon file dari getFileIcon -->
                         <i class="fas ${getFileIcon(file.key)}"></i>
                         <h5 class="file-card-title">${file.key}</h5>
                     </div>
@@ -170,7 +164,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
                     <div class="file-card-footer">
-                        <!-- DIPERBAIKI: Kembalikan icon fa-download di count + buttons -->
                         <span class="download-count"><i class="fas fa-download"></i> ${file.download_count} times</span>
                         <div>
                             <button class="btn btn-download btn-sm" data-filename="${file.key}">
@@ -204,7 +197,12 @@ document.addEventListener('DOMContentLoaded', () => {
         
         updateSlidePosition();
         
-        // DIPERBAIKI: Re-attach event listeners (aman untuk icons)
+        // Hapus event lama
+        document.querySelectorAll('.btn-download, .btn-copy').forEach(btn => {
+            btn.replaceWith(btn.cloneNode(true));
+        });
+
+        // Tambah event baru
         document.querySelectorAll('.btn-download').forEach(button => {
             button.addEventListener('click', handleDownloadClick);
         });
@@ -213,10 +211,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+    // --- UPDATE POSISI DENGAN ANIMASI ---
     const updateSlidePosition = () => {
         const slides = document.querySelectorAll('.file-slide');
         slides.forEach((slide, i) => {
-            slide.style.transform = `translateX(${(i - currentSlide) * 100}%)`;
+            const offset = (i - currentSlide) * 100;
+            slide.style.transform = `translateX(${offset}%)`;
         });
         
         const indicators = document.querySelectorAll('.indicator');
@@ -242,18 +242,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentSlide < totalSlides - 1) goToSlide(currentSlide + 1);
     });
 
-    // --- Function handle download/copy --- [DIPERBAIKI: PAKSA DOWNLOAD + REFRESH COUNT]
+    // --- Handle download/copy ---
     const handleFileAction = async (filename, publicUrl, action) => {
         console.log('handleFileAction called with:', { filename, publicUrl, action });
     
         try {
             if (action === 'download') {
-                // DIPERBAIKI: Gunakan fetch + blob untuk Save As (tidak render di tab)
                 const downloadUrl = `/api/serve-file/${encodeURIComponent(filename)}?t=${Date.now()}`;
                 console.log('Final download URL:', downloadUrl);
             
                 const response = await fetch(downloadUrl, { cache: 'no-cache' });
-                if (!response.ok) throw new Error('Download failed');
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Server ${response.status}: ${errorText}`);
+                }
                 
                 const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
@@ -266,21 +268,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
             
+                await fetchAndDisplayFiles();
+
             } else if (action === 'copy') {
                 await navigator.clipboard.writeText(publicUrl);
                 showNotification('Link copied!', 'success');
             }
 
-            // DIPERBAIKI: Selalu refresh UI setelah aksi (count naik, no fallback)
-            fetchAndDisplayFiles();
-
         } catch (error) {
             console.error('Action failed:', error);
-            showNotification('Action failed. Please try again.', 'error');
+            showNotification(`Action failed: ${error.message}`, 'error');
         }
     };
     
-    // --- Event handlers for download/copy buttons ---
     const handleDownloadClick = async (e) => {
         const button = e.currentTarget;
         const filename = button.dataset.filename;
@@ -294,7 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await handleFileAction(filename, publicUrl, 'copy');
     };
 
-    // --- Upload progress bar ---
+    // --- Upload ---
     const uploadFileXHR = (file, callback) => {
         const formData = new FormData();
         formData.append('file', file);
@@ -324,9 +324,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } else {
                 let errorMessage = `Upload failed with status: ${xhr.status}`;
-                if (xhr.status === 413) {
-                    errorMessage = 'File is too large. Please try a smaller file or contact support.';
-                }
                 try {
                     const errorData = JSON.parse(xhr.responseText);
                     errorMessage = errorData.error || errorMessage;
@@ -344,7 +341,6 @@ document.addEventListener('DOMContentLoaded', () => {
         xhr.send(formData);
     };
 
-    // --- Event listener upload form ---
     uploadForm.addEventListener('submit', (e) => {
         e.preventDefault();
         if (!uploadForm.checkValidity()) {
@@ -353,7 +349,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const file = fileInput.files[0];
-        // DIPERBAIKI: Kembalikan icon + text loading
         uploadButton.disabled = true;
         uploadButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Uploading...';
 
@@ -366,13 +361,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetchAndDisplayFiles();
                 showNotification(result.message, 'success');
             }
-            // DIPERBAIKI: Kembalikan icon upload
             uploadButton.disabled = false;
             uploadButton.innerHTML = '<i class="fas fa-cloud-upload-alt me-2"></i>Upload File';
         });
     });
 
-    // --- Event listener modal upload ---
     modalUploadForm.addEventListener('submit', (e) => {
         e.preventDefault();
         if (!modalFileInput.files.length) {
@@ -394,7 +387,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- Event listener modal controls ---
     fabButton.addEventListener('click', () => {
         uploadModal.classList.add('show');
     });
@@ -409,54 +401,42 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- Funct searching --- [DIPERBAIKI: Tambah debounce (tidak ganggu slide/icons)]
+    // --- Search ---
     let searchTimeout;
     searchInput.addEventListener('input', (e) => {
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(() => {
             const searchTerm = e.target.value.toLowerCase();
-            
-            if (searchTerm === '') {
-                filteredFiles = [...allFiles];
-            } else {
-                filteredFiles = allFiles.filter(file => 
-                    file.key.toLowerCase().includes(searchTerm)
-                );
-            }
-            
+            filteredFiles = searchTerm === '' 
+                ? [...allFiles] 
+                : allFiles.filter(file => file.key.toLowerCase().includes(searchTerm));
             currentSlide = 0;
             createFileSlides();
         }, 300);
     });
 
-    // --- Funct notify ---
+    // --- Notify ---
     const showNotification = (message, type = 'info') => {
         const notification = document.getElementById('notification');
         notification.textContent = message;
         notification.className = `notification ${type}`;
         notification.classList.add('show');
-        
-        setTimeout(() => {
-            notification.classList.remove('show');
-        }, 3000);
+        setTimeout(() => notification.classList.remove('show'), 3000);
     };
 
-    // --- Fetch data & view file --- [DIPERBAIKI: NO SAMPLE, BYPASS CACHE, REFRESH UI]
+    // --- Fetch ---
     const fetchAndDisplayFiles = async () => {
         try {
             loadingMessage.style.display = 'block';
             loadingMessage.innerHTML = '<span class="loading-spinner"></span> Loading files...';
             fileSliderContainer.style.display = 'none';
             
-            // DIPERBAIKI: Bypass cache dengan timestamp + no-cache
             const response = await fetch(`/api/files?t=${Date.now()}`, { cache: 'no-cache' });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             
             const result = await response.json();
-            
             allFiles = result.files || [];
             filteredFiles = [...allFiles];
-            
             createFileSlides();
             updateBucketStats(result.stats || {
                 total_files: 0,
@@ -465,22 +445,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 days_until_reset: 30,
                 current_period_size: 0
             });
-            
             loadingMessage.style.display = 'none';
-
         } catch (error) {
             console.error('Failed to load files:', error);
             loadingMessage.textContent = `Error: ${error.message}`;
             loadingMessage.style.color = '#e74c3c';
             allFiles = [];
             filteredFiles = [];
-            createFileSlides(); // Tampilkan "No files" dengan icons utuh
+            createFileSlides();
         }
     };
 
-    // Initialize
     fetchAndDisplayFiles();
-    
-    // Update countdown every day
     setInterval(fetchAndDisplayFiles, 24 * 60 * 60 * 1000);
 });
