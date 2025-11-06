@@ -119,6 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Function sliding windows — FIX KOSONG + ANIMASI ---
     const createFileSlides = () => {
         fileList.innerHTML = '';
+        fileList.classList.add('file-slider');
         sliderIndicators.innerHTML = '';
         
         if (filteredFiles.length === 0) {
@@ -213,19 +214,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- UPDATE POSISI DENGAN ANIMASI ---
     const updateSlidePosition = () => {
-        const slides = document.querySelectorAll('.file-slide');
-        slides.forEach((slide, i) => {
-            const offset = (i - currentSlide) * 100;
-            slide.style.transform = `translateX(${offset}%)`;
-        });
-        
+        const slider = document.querySelector('.file-slider');
+        if (!slider) return;
+    
+        const offset = -currentSlide * 100;
+        slider.style.transform = `translateX(${offset}%)`;
+    
         const indicators = document.querySelectorAll('.indicator');
         indicators.forEach((ind, i) => {
             ind.classList.toggle('active', i === currentSlide);
         });
-        
+    
         prevSlide.disabled = currentSlide === 0;
-        nextSlide.disabled = currentSlide === (slides.length - 1);
+        nextSlide.disabled = currentSlide === (indicators.length - 1);
     };
 
     const goToSlide = (index) => {
