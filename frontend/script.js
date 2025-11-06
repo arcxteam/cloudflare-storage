@@ -52,14 +52,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const iconMap = {
             'pdf': 'fa-file-pdf', 'doc': 'fa-file-word', 'docx': 'fa-file-word',
             'xls': 'fa-file-excel', 'xlsx': 'fa-file-excel', 'ppt': 'fa-file-powerpoint',
-            'pptx': 'fa-file-powerpoint', 'jpg': 'fa-file-image', 'jpeg': 'fa-file-image',
+            'pptx': 'fa-file-powerpoint', 'jpg': 'fa-file-image', 'jpeg': 'fa-file-image', 'mov': 'fa-file-video'
             'png': 'fa-file-image', 'gif': 'fa-file-image', 'mp4': 'fa-file-video', 'csv': 'fa-file-excel',
             'mp3': 'fa-file-audio', 'zip': 'fa-file-zipper', 'rar': 'fa-file-zipper', 'svg': 'fa-file-image',
             'sketch': 'fa-file-fragment', 'sh': 'fa-file-code', 'py': 'fa-file-code', 'js': 'fa-file-code',
             'html': 'fa-file-code', 'yml': 'fa-file-code', 'sol': 'fa-file-code', 'ts': 'fa-file-code',
             'json': 'fa-file-code', 'php': 'fa-file-code', 'java': 'fa-file-code', 'rb': 'fa-file-code',
             'ipynb': 'fa-file-code', 'cpp': 'fa-file-code', 'go': 'fa-file-code', 'md': 'fa-file-shield',
-            'txt': 'fa-file-contract', 'dwg': 'fa-file-fragment'
+            'txt': 'fa-file-contract', 'dwg': 'fa-file-fragment', 'heif': 'fa-file-image', 'tiff': 'fa-file-image'
         };
         return iconMap[ext] || 'fa-file';
     };
@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- Funcnt Animated ---
+    // --- Function Animated ---
     const animateValue = (element, start, end, duration) => {
         const range = end - start;
         const increment = range / (duration / 16);
@@ -133,9 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const slideCount = Math.ceil(filteredFiles.length / filesPerSlide);
         
-        if (currentSlide >= slideCount) {
-            currentSlide = Math.max(0, slideCount - 1);
-        }
+        currentSlide = 0;
         
         for (let i = 0; i < slideCount; i++) {
             const slide = document.createElement('div');
@@ -236,7 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentSlide < totalSlides - 1) goToSlide(currentSlide + 1);
     });
 
-    // --- Function handle download/copy ---
+    // --- Function handle download & copy ---
     const handleFileAction = async (filename, publicUrl, action) => {
         console.log('handleFileAction called with:', { filename, publicUrl, action });
     
@@ -418,7 +416,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 300);
     });
 
-    // --- Funct notify ---
+    // --- Function notify ---
     const showNotification = (message, type = 'info') => {
         const notification = document.getElementById('notification');
         notification.textContent = message;
