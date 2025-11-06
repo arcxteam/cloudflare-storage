@@ -266,6 +266,8 @@ def list_files():
 def serve_file(filename):
     try:
         app.logger.info(f"Received download request for file: {filename}")
+        # debug
+        app.logger.info(f"Encoded filename: {filename}")
         
         increment_download_count(filename)
         app.logger.info(f"Successfully incremented count for file: {filename}")
@@ -278,17 +280,17 @@ def serve_file(filename):
             file_stream,
             download_name=filename,
             mimetype=file_obj.get('ContentType', 'application/octet-stream'),
-            as_attachment=True  # "Save As"
+            as_attachment=True
         )
     except ClientError as e:
-        if e.response['Error']['Code'] == 'NoSuchKey':
-            app.logger.error(f"File not found: {filename}")
-            return jsonify({"error": "File not found"}), 404
-        app.logger.error(f"R2 access error for {filename}: {e}")
-        return jsonify({"error": "File access failed"}), 500
+        error_code = e.response['Error']['Code']
+        app.logger.error(f"ClientError for {filename}: {error_code} - {e}")
+        if error_code == 'NoSuchKey':
+            return jsonify({"error": "File not found in R2. Check key: " + filename}), 404
+        return jsonify({"error": "R2 access failed: " + str(e)}), 500
     except Exception as e:
         app.logger.error(f"Download error for {filename}: {e}", exc_info=True)
-        return jsonify({"error": "Internal server error"}), 500
+        return jsonify({"error": "Internal server error: " + str(e)}), 500
 
 # === HEALTH CHECK ===
 @app.route('/health')
