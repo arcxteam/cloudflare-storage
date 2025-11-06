@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const iconMap = {
             'pdf': 'fa-file-pdf', 'doc': 'fa-file-word', 'docx': 'fa-file-word',
             'xls': 'fa-file-excel', 'xlsx': 'fa-file-excel', 'ppt': 'fa-file-powerpoint',
-            'pptx': 'fa-file-powerpoint', 'jpg': 'fa-file-image', 'jpeg': 'fa-file-image', 'mov': 'fa-file-video'
+            'pptx': 'fa-file-powerpoint', 'jpg': 'fa-file-image', 'jpeg': 'fa-file-image', 'mov': 'fa-file-video',
             'png': 'fa-file-image', 'gif': 'fa-file-image', 'mp4': 'fa-file-video', 'csv': 'fa-file-excel',
             'mp3': 'fa-file-audio', 'zip': 'fa-file-zipper', 'rar': 'fa-file-zipper', 'svg': 'fa-file-image',
             'sketch': 'fa-file-fragment', 'sh': 'fa-file-code', 'py': 'fa-file-code', 'js': 'fa-file-code',
