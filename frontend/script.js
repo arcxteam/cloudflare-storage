@@ -1,4 +1,4 @@
-// Update for script.js v1.0.8
+// Update script.js v1.0.9
 document.addEventListener('DOMContentLoaded', () => {
     const uploadForm = document.getElementById('uploadForm');
     const fileInput = document.getElementById('fileInput');
@@ -59,12 +59,12 @@ document.addEventListener('DOMContentLoaded', () => {
             'html': 'fa-file-code', 'yml': 'fa-file-code', 'sol': 'fa-file-code', 'ts': 'fa-file-code',
             'json': 'fa-file-code', 'php': 'fa-file-code', 'java': 'fa-file-code', 'rb': 'fa-file-code',
             'ipynb': 'fa-file-code', 'cpp': 'fa-file-code', 'go': 'fa-file-code', 'md': 'fa-file-shield',
-            'txt': 'fa-file-contract', 'dwg': 'fa-file-fragment', 'ico': 'fa-file-image', 'heif': 'fa-file-video',
+            'txt': 'fa-file-contract', 'dwg': 'fa-file-fragment'
         };
         return iconMap[ext] || 'fa-file';
     };
 
-    // --- Function Update Statistic Bucket ---
+    // --- Funct Update Statistic Bucket ---
     const updateBucketStats = (stats) => {
         animateValue(fileCount, parseInt(fileCount.textContent) || 0, stats.total_files, 1000);
         animateText(bucketSize, stats.formatted_current_period_size);
@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- Function Animated ---
+    // --- Funcnt Animated ---
     const animateValue = (element, start, end, duration) => {
         const range = end - start;
         const increment = range / (duration / 16);
@@ -119,7 +119,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Function sliding windows ---
     const createFileSlides = () => {
         fileList.innerHTML = '';
-        fileList.classList.add('file-slider');
         sliderIndicators.innerHTML = '';
         
         if (filteredFiles.length === 0) {
@@ -134,11 +133,14 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const slideCount = Math.ceil(filteredFiles.length / filesPerSlide);
         
-        currentSlide = 0;
+        if (currentSlide >= slideCount) {
+            currentSlide = Math.max(0, slideCount - 1);
+        }
         
         for (let i = 0; i < slideCount; i++) {
             const slide = document.createElement('div');
             slide.className = 'file-slide';
+            if (i === currentSlide) slide.classList.add('active');
             
             const startIdx = i * filesPerSlide;
             const endIdx = Math.min(startIdx + filesPerSlide, filteredFiles.length);
@@ -197,12 +199,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         updateSlidePosition();
         
-        // Remove old event
-        document.querySelectorAll('.btn-download, .btn-copy').forEach(btn => {
-            btn.replaceWith(btn.cloneNode(true));
-        });
-
-        // Add new event
         document.querySelectorAll('.btn-download').forEach(button => {
             button.addEventListener('click', handleDownloadClick);
         });
@@ -211,21 +207,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    // --- UPDATE ANIMATED ---
     const updateSlidePosition = () => {
-        const slider = document.querySelector('.file-slider');
-        if (!slider) return;
-    
-        const offset = -currentSlide * 100;
-        slider.style.transform = `translateX(${offset}%)`;
-    
+        const slides = document.querySelectorAll('.file-slide');
+        slides.forEach((slide, i) => {
+            slide.style.transform = `translateX(${(i - currentSlide) * 100}%)`;
+        });
+        
         const indicators = document.querySelectorAll('.indicator');
         indicators.forEach((ind, i) => {
             ind.classList.toggle('active', i === currentSlide);
         });
-    
+        
         prevSlide.disabled = currentSlide === 0;
-        nextSlide.disabled = currentSlide === (indicators.length - 1);
+        nextSlide.disabled = currentSlide === (slides.length - 1);
     };
 
     const goToSlide = (index) => {
@@ -242,7 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentSlide < totalSlides - 1) goToSlide(currentSlide + 1);
     });
 
-    // --- Handle download/copy ---
+    // --- Function handle download/copy ---
     const handleFileAction = async (filename, publicUrl, action) => {
         console.log('handleFileAction called with:', { filename, publicUrl, action });
     
@@ -252,10 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('Final download URL:', downloadUrl);
             
                 const response = await fetch(downloadUrl, { cache: 'no-cache' });
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Server ${response.status}: ${errorText}`);
-                }
+                if (!response.ok) throw new Error('Download failed');
                 
                 const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
@@ -268,16 +259,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
             
-                await fetchAndDisplayFiles();
-
             } else if (action === 'copy') {
                 await navigator.clipboard.writeText(publicUrl);
                 showNotification('Link copied!', 'success');
             }
 
+            fetchAndDisplayFiles();
+
         } catch (error) {
             console.error('Action failed:', error);
-            showNotification(`Action failed: ${error.message}`, 'error');
+            showNotification('Action failed. Please try again.', 'error');
         }
     };
     
@@ -294,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await handleFileAction(filename, publicUrl, 'copy');
     };
 
-    // --- Upload ---
+    // --- Upload progress bar ---
     const uploadFileXHR = (file, callback) => {
         const formData = new FormData();
         formData.append('file', file);
@@ -324,6 +315,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } else {
                 let errorMessage = `Upload failed with status: ${xhr.status}`;
+                if (xhr.status === 413) {
+                    errorMessage = 'File is too large. Please try a smaller file or contact support.';
+                }
                 try {
                     const errorData = JSON.parse(xhr.responseText);
                     errorMessage = errorData.error || errorMessage;
@@ -341,6 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
         xhr.send(formData);
     };
 
+    // --- Event listener upload form ---
     uploadForm.addEventListener('submit', (e) => {
         e.preventDefault();
         if (!uploadForm.checkValidity()) {
@@ -366,6 +361,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // --- Event listener modal upload ---
     modalUploadForm.addEventListener('submit', (e) => {
         e.preventDefault();
         if (!modalFileInput.files.length) {
@@ -387,6 +383,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // --- Event listener modal controls ---
     fabButton.addEventListener('click', () => {
         uploadModal.classList.add('show');
     });
@@ -401,42 +398,53 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- Search ---
+    // --- Funct searching ---
     let searchTimeout;
     searchInput.addEventListener('input', (e) => {
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(() => {
             const searchTerm = e.target.value.toLowerCase();
-            filteredFiles = searchTerm === '' 
-                ? [...allFiles] 
-                : allFiles.filter(file => file.key.toLowerCase().includes(searchTerm));
+            
+            if (searchTerm === '') {
+                filteredFiles = [...allFiles];
+            } else {
+                filteredFiles = allFiles.filter(file => 
+                    file.key.toLowerCase().includes(searchTerm)
+                );
+            }
+            
             currentSlide = 0;
             createFileSlides();
         }, 300);
     });
 
-    // --- Notify ---
+    // --- Funct notify ---
     const showNotification = (message, type = 'info') => {
         const notification = document.getElementById('notification');
         notification.textContent = message;
         notification.className = `notification ${type}`;
         notification.classList.add('show');
-        setTimeout(() => notification.classList.remove('show'), 3000);
+        
+        setTimeout(() => {
+            notification.classList.remove('show');
+        }, 3000);
     };
 
-    // --- Fetch ---
+    // --- Fetch data & view file ---
     const fetchAndDisplayFiles = async () => {
         try {
             loadingMessage.style.display = 'block';
             loadingMessage.innerHTML = '<span class="loading-spinner"></span> Loading files...';
             fileSliderContainer.style.display = 'none';
             
-            const response = await fetch(`/api/files?t=${Date.now()}`, { cache: 'no-cache' });
+            const response = await fetch('/api/files?t=' + Date.now(), { cache: 'no-cache' });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             
             const result = await response.json();
+            
             allFiles = result.files || [];
             filteredFiles = [...allFiles];
+            
             createFileSlides();
             updateBucketStats(result.stats || {
                 total_files: 0,
@@ -445,7 +453,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 days_until_reset: 30,
                 current_period_size: 0
             });
+            
             loadingMessage.style.display = 'none';
+
         } catch (error) {
             console.error('Failed to load files:', error);
             loadingMessage.textContent = `Error: ${error.message}`;
@@ -456,6 +466,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // Initialize
     fetchAndDisplayFiles();
+    
+    // Update countdown every day
     setInterval(fetchAndDisplayFiles, 24 * 60 * 60 * 1000);
 });
