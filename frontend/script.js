@@ -1,3 +1,4 @@
+// Update for script.js v1.0.8
 document.addEventListener('DOMContentLoaded', () => {
     const uploadForm = document.getElementById('uploadForm');
     const fileInput = document.getElementById('fileInput');
@@ -32,22 +33,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let filteredFiles = [];
     const filesPerSlide = 6;
 
-    // --- Sample data testing ---
-    const sampleFiles = [
-        { key: 'A1_presentation.pdf', size: 2546576, last_modified: new Date().toISOString(), local_url: '#', public_url: '#', download_count: 42 },
-        { key: 'project-proposal.docx', size: 1150976, last_modified: new Date(Date.now() - 86400000).toISOString(), local_url: '#', public_url: '#', download_count: 18 },
-        { key: 'team-photo.png', size: 3879731, last_modified: new Date(Date.now() - 172800000).toISOString(), local_url: '#', public_url: '#', download_count: 27 },
-        { key: 'demo-video.mp4', size: 159383556, last_modified: new Date(Date.now() - 259200000).toISOString(), local_url: '#', public_url: '#', download_count: 35 },
-        { key: 'annual_report.xlsx', size: 876544, last_modified: new Date(Date.now() - 345600000).toISOString(), local_url: '#', public_url: '#', download_count: 12 },
-        { key: 'data_file.json', size: 21567896, last_modified: new Date(Date.now() - 432000000).toISOString(), local_url: '#', public_url: '#', download_count: 23 },
-        { key: 'budget-2025.zip', size: 345678965, last_modified: new Date(Date.now() - 518400000).toISOString(), local_url: '#', public_url: '#', download_count: 45 },
-        { key: 'signer-contract.txt', size: 567890, last_modified: new Date(Date.now() - 604800000).toISOString(), local_url: '#', public_url: '#', download_count: 8 },
-        { key: 'ohlc_BTC_1M.csv', size: 256789011, last_modified: new Date(Date.now() - 691200000).toISOString(), local_url: '#', public_url: '#', download_count: 67 },
-        { key: 'brand-presentation.ppt', size: 4567890, last_modified: new Date(Date.now() - 777600000).toISOString(), local_url: '#', public_url: '#', download_count: 34 },
-        { key: 'readme.md', size: 1234567, last_modified: new Date(Date.now() - 864000000).toISOString(), local_url: '#', public_url: '#', download_count: 19 },
-        { key: 'prototype-design.dwg', size: 987654366, last_modified: new Date(Date.now() - 950400000).toISOString(), local_url: '#', public_url: '#', download_count: 56 }
-    ];
-
     // --- Funct Utility ---
     const formatFileSize = (bytes) => {
         if (bytes === 0) return '0 Bytes';
@@ -74,12 +59,12 @@ document.addEventListener('DOMContentLoaded', () => {
             'html': 'fa-file-code', 'yml': 'fa-file-code', 'sol': 'fa-file-code', 'ts': 'fa-file-code',
             'json': 'fa-file-code', 'php': 'fa-file-code', 'java': 'fa-file-code', 'rb': 'fa-file-code',
             'ipynb': 'fa-file-code', 'cpp': 'fa-file-code', 'go': 'fa-file-code', 'md': 'fa-file-shield',
-            'txt': 'fa-file-contract', 'dwg': 'fa-file-fragment'
+            'txt': 'fa-file-contract', 'dwg': 'fa-file-fragment', 'ico': 'fa-file-image', 'heif': 'fa-file-video',
         };
         return iconMap[ext] || 'fa-file';
     };
 
-    // --- Funct Update Statistic Bucket ---
+    // --- Function Update Statistic Bucket ---
     const updateBucketStats = (stats) => {
         animateValue(fileCount, parseInt(fileCount.textContent) || 0, stats.total_files, 1000);
         animateText(bucketSize, stats.formatted_current_period_size);
@@ -100,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- Funcnt Animated ---
+    // --- Function Animated ---
     const animateValue = (element, start, end, duration) => {
         const range = end - start;
         const increment = range / (duration / 16);
@@ -134,6 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Function sliding windows ---
     const createFileSlides = () => {
         fileList.innerHTML = '';
+        fileList.classList.add('file-slider');
         sliderIndicators.innerHTML = '';
         
         if (filteredFiles.length === 0) {
@@ -148,10 +134,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const slideCount = Math.ceil(filteredFiles.length / filesPerSlide);
         
+        currentSlide = 0;
+        
         for (let i = 0; i < slideCount; i++) {
             const slide = document.createElement('div');
             slide.className = 'file-slide';
-            if (i === currentSlide) slide.classList.add('active');
             
             const startIdx = i * filesPerSlide;
             const endIdx = Math.min(startIdx + filesPerSlide, filteredFiles.length);
@@ -179,8 +166,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="file-card-footer">
                         <span class="download-count"><i class="fas fa-download"></i> ${file.download_count} times</span>
                         <div>
-                            <button class="btn btn-download btn-sm" data-filename="${file.key}"><i class="fas fa-file-arrow-down"></i></button>
-                            <button class="btn btn-copy btn-sm" data-filename="${file.key}" data-public-url="${file.public_url}"><i class="fas fa-arrow-up-from-bracket"></i></button>
+                            <button class="btn btn-download btn-sm" data-filename="${file.key}">
+                                <i class="fas fa-file-arrow-down"></i>
+                            </button>
+                            <button class="btn btn-copy btn-sm" data-filename="${file.key}" data-public-url="${file.public_url}">
+                                <i class="fas fa-arrow-up-from-bracket"></i>
+                            </button>
                         </div>
                     </div>
                 `;
@@ -206,6 +197,12 @@ document.addEventListener('DOMContentLoaded', () => {
         
         updateSlidePosition();
         
+        // Remove old event
+        document.querySelectorAll('.btn-download, .btn-copy').forEach(btn => {
+            btn.replaceWith(btn.cloneNode(true));
+        });
+
+        // Add new event
         document.querySelectorAll('.btn-download').forEach(button => {
             button.addEventListener('click', handleDownloadClick);
         });
@@ -214,19 +211,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+    // --- UPDATE ANIMATED ---
     const updateSlidePosition = () => {
-        const slides = document.querySelectorAll('.file-slide');
-        slides.forEach((slide, i) => {
-            slide.style.transform = `translateX(${(i - currentSlide) * 100}%)`;
-        });
-        
+        const slider = document.querySelector('.file-slider');
+        if (!slider) return;
+    
+        const offset = -currentSlide * 100;
+        slider.style.transform = `translateX(${offset}%)`;
+    
         const indicators = document.querySelectorAll('.indicator');
         indicators.forEach((ind, i) => {
             ind.classList.toggle('active', i === currentSlide);
         });
-        
+    
         prevSlide.disabled = currentSlide === 0;
-        nextSlide.disabled = currentSlide === (slides.length - 1);
+        nextSlide.disabled = currentSlide === (indicators.length - 1);
     };
 
     const goToSlide = (index) => {
@@ -243,38 +242,45 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentSlide < totalSlides - 1) goToSlide(currentSlide + 1);
     });
 
-    // --- Function handle download/copy ---
+    // --- Handle download/copy ---
     const handleFileAction = async (filename, publicUrl, action) => {
         console.log('handleFileAction called with:', { filename, publicUrl, action });
-        // ------------------------------------
     
         try {
             if (action === 'download') {
-                const downloadUrl = `/api/serve-file/${encodeURIComponent(filename)}`;
+                const downloadUrl = `/api/serve-file/${encodeURIComponent(filename)}?t=${Date.now()}`;
                 console.log('Final download URL:', downloadUrl);
             
+                const response = await fetch(downloadUrl, { cache: 'no-cache' });
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Server ${response.status}: ${errorText}`);
+                }
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.style.display = 'none';
-                a.href = downloadUrl;
+                a.href = url;
                 a.setAttribute('download', filename);
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
             
+                await fetchAndDisplayFiles();
+
             } else if (action === 'copy') {
                 await navigator.clipboard.writeText(publicUrl);
                 showNotification('Link copied!', 'success');
             }
 
-            fetchAndDisplayFiles();
-
         } catch (error) {
             console.error('Action failed:', error);
-            showNotification('Action failed. Please try again.', 'error');
+            showNotification(`Action failed: ${error.message}`, 'error');
         }
     };
     
-    // --- Event handlers for download/copy buttons ---
     const handleDownloadClick = async (e) => {
         const button = e.currentTarget;
         const filename = button.dataset.filename;
@@ -288,7 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await handleFileAction(filename, publicUrl, 'copy');
     };
 
-    // --- Upload progress bar ---
+    // --- Upload ---
     const uploadFileXHR = (file, callback) => {
         const formData = new FormData();
         formData.append('file', file);
@@ -318,9 +324,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } else {
                 let errorMessage = `Upload failed with status: ${xhr.status}`;
-                if (xhr.status === 413) {
-                    errorMessage = 'File is too large. Please try a smaller file or contact support.';
-                }
                 try {
                     const errorData = JSON.parse(xhr.responseText);
                     errorMessage = errorData.error || errorMessage;
@@ -338,7 +341,6 @@ document.addEventListener('DOMContentLoaded', () => {
         xhr.send(formData);
     };
 
-    // --- Event listener upload form ---
     uploadForm.addEventListener('submit', (e) => {
         e.preventDefault();
         if (!uploadForm.checkValidity()) {
@@ -364,7 +366,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- Event listener modal upload ---
     modalUploadForm.addEventListener('submit', (e) => {
         e.preventDefault();
         if (!modalFileInput.files.length) {
@@ -386,7 +387,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- Event listener modal controls ---
     fabButton.addEventListener('click', () => {
         uploadModal.classList.add('show');
     });
@@ -401,82 +401,61 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- Funct searching ---
+    // --- Search ---
+    let searchTimeout;
     searchInput.addEventListener('input', (e) => {
-        const searchTerm = e.target.value.toLowerCase();
-        
-        if (searchTerm === '') {
-            filteredFiles = [...allFiles];
-        } else {
-            filteredFiles = allFiles.filter(file => 
-                file.key.toLowerCase().includes(searchTerm)
-            );
-        }
-        
-        currentSlide = 0;
-        createFileSlides();
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            const searchTerm = e.target.value.toLowerCase();
+            filteredFiles = searchTerm === '' 
+                ? [...allFiles] 
+                : allFiles.filter(file => file.key.toLowerCase().includes(searchTerm));
+            currentSlide = 0;
+            createFileSlides();
+        }, 300);
     });
 
-    // --- Funct notify ---
+    // --- Notify ---
     const showNotification = (message, type = 'info') => {
         const notification = document.getElementById('notification');
         notification.textContent = message;
         notification.className = `notification ${type}`;
         notification.classList.add('show');
-        
-        setTimeout(() => {
-            notification.classList.remove('show');
-        }, 3000);
+        setTimeout(() => notification.classList.remove('show'), 3000);
     };
 
-    // --- Fetch data & view file ---
+    // --- Fetch ---
     const fetchAndDisplayFiles = async () => {
         try {
             loadingMessage.style.display = 'block';
             loadingMessage.innerHTML = '<span class="loading-spinner"></span> Loading files...';
             fileSliderContainer.style.display = 'none';
             
-            try {
-                const response = await fetch('/api/files');
-                const result = await response.json();
-                
-                allFiles = result.files || [];
-                filteredFiles = [...allFiles];
-                
-                createFileSlides();
-                updateBucketStats(result.stats || {
-                    total_files: 0,
-                    formatted_current_period_size: "0 Bytes",
-                    formatted_remaining: "10 GB",
-                    days_until_reset: 30,
-                    current_period_size: 0
-                });
-            } catch (apiError) {
-                console.log('Using sample data for demonstration');
-                allFiles = [...sampleFiles];
-                filteredFiles = [...allFiles];
-                
-                createFileSlides();
-                updateBucketStats({
-                    total_files: allFiles.length,
-                    formatted_current_period_size: "0 Bytes",
-                    formatted_remaining: "10 GB",
-                    days_until_reset: 30,
-                    current_period_size: 0
-                });
-            }
+            const response = await fetch(`/api/files?t=${Date.now()}`, { cache: 'no-cache' });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
             
+            const result = await response.json();
+            allFiles = result.files || [];
+            filteredFiles = [...allFiles];
+            createFileSlides();
+            updateBucketStats(result.stats || {
+                total_files: 0,
+                formatted_current_period_size: "0 Bytes",
+                formatted_remaining: "10 GB",
+                days_until_reset: 30,
+                current_period_size: 0
+            });
             loadingMessage.style.display = 'none';
-
         } catch (error) {
+            console.error('Failed to load files:', error);
             loadingMessage.textContent = `Error: ${error.message}`;
             loadingMessage.style.color = '#e74c3c';
+            allFiles = [];
+            filteredFiles = [];
+            createFileSlides();
         }
     };
 
-    // Initialize
     fetchAndDisplayFiles();
-    
-    // Update countdown every day
     setInterval(fetchAndDisplayFiles, 24 * 60 * 60 * 1000);
 });
