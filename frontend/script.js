@@ -1,4 +1,4 @@
-// Update for script.js v1.0.8
+// Update script.js v1.0.9
 document.addEventListener('DOMContentLoaded', () => {
     const uploadForm = document.getElementById('uploadForm');
     const fileInput = document.getElementById('fileInput');
@@ -52,14 +52,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const iconMap = {
             'pdf': 'fa-file-pdf', 'doc': 'fa-file-word', 'docx': 'fa-file-word',
             'xls': 'fa-file-excel', 'xlsx': 'fa-file-excel', 'ppt': 'fa-file-powerpoint',
-            'pptx': 'fa-file-powerpoint', 'jpg': 'fa-file-image', 'jpeg': 'fa-file-image',
+            'pptx': 'fa-file-powerpoint', 'jpg': 'fa-file-image', 'jpeg': 'fa-file-image', 'mov': 'fa-file-video',
             'png': 'fa-file-image', 'gif': 'fa-file-image', 'mp4': 'fa-file-video', 'csv': 'fa-file-excel',
             'mp3': 'fa-file-audio', 'zip': 'fa-file-zipper', 'rar': 'fa-file-zipper', 'svg': 'fa-file-image',
             'sketch': 'fa-file-fragment', 'sh': 'fa-file-code', 'py': 'fa-file-code', 'js': 'fa-file-code',
             'html': 'fa-file-code', 'yml': 'fa-file-code', 'sol': 'fa-file-code', 'ts': 'fa-file-code',
             'json': 'fa-file-code', 'php': 'fa-file-code', 'java': 'fa-file-code', 'rb': 'fa-file-code',
             'ipynb': 'fa-file-code', 'cpp': 'fa-file-code', 'go': 'fa-file-code', 'md': 'fa-file-shield',
-            'txt': 'fa-file-contract', 'dwg': 'fa-file-fragment', 'ico': 'fa-file-image', 'heif': 'fa-file-video',
+            'txt': 'fa-file-contract', 'dwg': 'fa-file-fragment', 'heif': 'fa-file-image', 'tiff': 'fa-file-image'
         };
         return iconMap[ext] || 'fa-file';
     };
@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- Funcnt Animated ---
+    // --- Function Animated ---
     const animateValue = (element, start, end, duration) => {
         const range = end - start;
         const increment = range / (duration / 16);
@@ -116,10 +116,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 300);
     };
 
-    // --- Function sliding windows — FIX KOSONG + ANIMASI ---
+    // --- Function sliding windows (PERBAIKAN) ---
     const createFileSlides = () => {
         fileList.innerHTML = '';
-        fileList.classList.add('file-slider');
         sliderIndicators.innerHTML = '';
         
         if (filteredFiles.length === 0) {
@@ -131,21 +130,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         fileSliderContainer.style.display = 'block';
-        
-        const slideCount = Math.ceil(filteredFiles.length / filesPerSlide);
-        
-        // SELALU RESET KE SLIDE PERTAMA
         currentSlide = 0;
-        
-        for (let i = 0; i < slideCount; i++) {
+        let slideIndex = 0;
+
+        // Loop melalui file dalam 'potongan' (chunks) untuk mencegah slide kosong
+        for (let i = 0; i < filteredFiles.length; i += filesPerSlide) {
             const slide = document.createElement('div');
             slide.className = 'file-slide';
+            if (slideIndex === currentSlide) slide.classList.add('active');
             
-            const startIdx = i * filesPerSlide;
-            const endIdx = Math.min(startIdx + filesPerSlide, filteredFiles.length);
+            const chunk = filteredFiles.slice(i, i + filesPerSlide);
             
-            for (let j = startIdx; j < endIdx; j++) {
-                const file = filteredFiles[j];
+            chunk.forEach(file => {
                 const fileCard = document.createElement('div');
                 fileCard.className = 'file-card';
                 
@@ -177,18 +173,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `;
                 slide.appendChild(fileCard);
-            }
+            });
             
             fileList.appendChild(slide);
             
             const indicator = document.createElement('div');
             indicator.className = 'indicator';
-            if (i === currentSlide) indicator.classList.add('active');
-            indicator.addEventListener('click', () => goToSlide(i));
+            if (slideIndex === currentSlide) indicator.classList.add('active');
+            indicator.addEventListener('click', () => goToSlide(slideIndex));
             sliderIndicators.appendChild(indicator);
+            
+            slideIndex++;
         }
         
-        if (slideCount > 1) {
+        const totalSlides = Math.ceil(filteredFiles.length / filesPerSlide);
+        if (totalSlides > 1) {
             sliderControls.style.display = 'flex';
             sliderIndicators.style.display = 'flex';
         } else {
@@ -198,12 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         updateSlidePosition();
         
-        // Hapus event lama
-        document.querySelectorAll('.btn-download, .btn-copy').forEach(btn => {
-            btn.replaceWith(btn.cloneNode(true));
-        });
-
-        // Tambah event baru
+        // Pasang kembali event listener ke tombol-tombol baru
         document.querySelectorAll('.btn-download').forEach(button => {
             button.addEventListener('click', handleDownloadClick);
         });
@@ -212,21 +206,20 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    // --- UPDATE POSISI DENGAN ANIMASI ---
     const updateSlidePosition = () => {
-        const slider = document.querySelector('.file-slider');
-        if (!slider) return;
-    
-        const offset = -currentSlide * 100;
-        slider.style.transform = `translateX(${offset}%)`;
-    
+        const slides = document.querySelectorAll('.file-slide');
+        if(slides.length === 0) return;
+        slides.forEach((slide, i) => {
+            slide.style.transform = `translateX(${(i - currentSlide) * 100}%)`;
+        });
+        
         const indicators = document.querySelectorAll('.indicator');
         indicators.forEach((ind, i) => {
             ind.classList.toggle('active', i === currentSlide);
         });
-    
+        
         prevSlide.disabled = currentSlide === 0;
-        nextSlide.disabled = currentSlide === (indicators.length - 1);
+        nextSlide.disabled = currentSlide === (slides.length - 1);
     };
 
     const goToSlide = (index) => {
@@ -243,59 +236,69 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentSlide < totalSlides - 1) goToSlide(currentSlide + 1);
     });
 
-    // --- Handle download/copy ---
-    const handleFileAction = async (filename, publicUrl, action) => {
-        console.log('handleFileAction called with:', { filename, publicUrl, action });
-    
-        try {
-            if (action === 'download') {
-                const downloadUrl = `/api/serve-file/${encodeURIComponent(filename)}?t=${Date.now()}`;
-                console.log('Final download URL:', downloadUrl);
-            
-                const response = await fetch(downloadUrl, { cache: 'no-cache' });
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Server ${response.status}: ${errorText}`);
-                }
-                
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-                a.setAttribute('download', filename);
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-            
-                await fetchAndDisplayFiles();
-
-            } else if (action === 'copy') {
-                await navigator.clipboard.writeText(publicUrl);
-                showNotification('Link copied!', 'success');
-            }
-
-        } catch (error) {
-            console.error('Action failed:', error);
-            showNotification(`Action failed: ${error.message}`, 'error');
-        }
-    };
-    
+    // --- Function handle download (PERBAIKAN) ---
     const handleDownloadClick = async (e) => {
         const button = e.currentTarget;
         const filename = button.dataset.filename;
-        await handleFileAction(filename, null, 'download');
+        const originalHTML = button.innerHTML;
+        
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        button.disabled = true;
+
+        try {
+            const downloadUrl = `/api/serve-file/${encodeURIComponent(filename)}?t=${Date.now()}`;
+            const response = await fetch(downloadUrl, { cache: 'no-cache' });
+            if (!response.ok) throw new Error('Download failed');
+            
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.setAttribute('download', filename);
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            // Refresh daftar file setelah download berhasil
+            fetchAndDisplayFiles();
+
+        } catch (error) {
+            console.error('Download failed:', error);
+            showNotification('Download failed. Please try again.', 'error');
+        } finally {
+            button.innerHTML = originalHTML;
+            button.disabled = false;
+        }
     };
 
+    // --- Function handle copy (PERBAIKAN) ---
     const handleCopyClick = async (e) => {
         const button = e.currentTarget;
-        const filename = button.dataset.filename;
         const publicUrl = button.dataset.publicUrl;
-        await handleFileAction(filename, publicUrl, 'copy');
+        const originalHTML = button.innerHTML;
+        
+        try {
+            await navigator.clipboard.writeText(publicUrl);
+            
+            // Ubah tampilan tombol menjadi "Copied"
+            button.innerHTML = '<i class="fas fa-check"></i> Copied';
+            button.disabled = true;
+
+            // Kembalikan ke tampilan semula setelah 2 detik
+            setTimeout(() => {
+                button.innerHTML = originalHTML;
+                button.disabled = false;
+            }, 2000);
+
+        } catch (error) {
+            console.error('Copy failed:', error);
+            showNotification('Failed to copy link.', 'error');
+        }
     };
 
-    // --- Upload ---
+    // --- Upload progress bar (PERBAIKAN) ---
     const uploadFileXHR = (file, callback) => {
         const formData = new FormData();
         formData.append('file', file);
@@ -306,7 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.lengthComputable) {
                 const percent = (e.loaded / e.total) * 100;
                 progressBar.style.width = `${percent}%`;
-                progressBar.textContent = `${Math.round(percent)}%`;
+                // Teks persentase di dalam bar telah dihapus
                 progressContainer.style.display = 'block';
             }
         };
@@ -314,7 +317,7 @@ document.addEventListener('DOMContentLoaded', () => {
         xhr.onload = () => {
             progressContainer.style.display = 'none';
             progressBar.style.width = '0%';
-            progressBar.textContent = '0%';
+            // Teks persentase di dalam bar telah dihapus
 
             if (xhr.status === 200) {
                 try {
@@ -325,6 +328,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } else {
                 let errorMessage = `Upload failed with status: ${xhr.status}`;
+                if (xhr.status === 413) {
+                    errorMessage = 'File is too large. Please try a smaller file or contact support.';
+                }
                 try {
                     const errorData = JSON.parse(xhr.responseText);
                     errorMessage = errorData.error || errorMessage;
@@ -342,6 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
         xhr.send(formData);
     };
 
+    // --- Event listener upload form ---
     uploadForm.addEventListener('submit', (e) => {
         e.preventDefault();
         if (!uploadForm.checkValidity()) {
@@ -367,6 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // --- Event listener modal upload ---
     modalUploadForm.addEventListener('submit', (e) => {
         e.preventDefault();
         if (!modalFileInput.files.length) {
@@ -388,6 +396,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // --- Event listener modal controls ---
     fabButton.addEventListener('click', () => {
         uploadModal.classList.add('show');
     });
@@ -402,42 +411,53 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- Search ---
+    // --- Funct searching ---
     let searchTimeout;
     searchInput.addEventListener('input', (e) => {
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(() => {
             const searchTerm = e.target.value.toLowerCase();
-            filteredFiles = searchTerm === '' 
-                ? [...allFiles] 
-                : allFiles.filter(file => file.key.toLowerCase().includes(searchTerm));
+            
+            if (searchTerm === '') {
+                filteredFiles = [...allFiles];
+            } else {
+                filteredFiles = allFiles.filter(file => 
+                    file.key.toLowerCase().includes(searchTerm)
+                );
+            }
+            
             currentSlide = 0;
             createFileSlides();
         }, 300);
     });
 
-    // --- Notify ---
+    // --- Function notify ---
     const showNotification = (message, type = 'info') => {
         const notification = document.getElementById('notification');
         notification.textContent = message;
         notification.className = `notification ${type}`;
         notification.classList.add('show');
-        setTimeout(() => notification.classList.remove('show'), 3000);
+        
+        setTimeout(() => {
+            notification.classList.remove('show');
+        }, 3000);
     };
 
-    // --- Fetch ---
+    // --- Fetch data & view file ---
     const fetchAndDisplayFiles = async () => {
         try {
             loadingMessage.style.display = 'block';
             loadingMessage.innerHTML = '<span class="loading-spinner"></span> Loading files...';
             fileSliderContainer.style.display = 'none';
             
-            const response = await fetch(`/api/files?t=${Date.now()}`, { cache: 'no-cache' });
+            const response = await fetch('/api/files?t=' + Date.now(), { cache: 'no-cache' });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             
             const result = await response.json();
+            
             allFiles = result.files || [];
             filteredFiles = [...allFiles];
+            
             createFileSlides();
             updateBucketStats(result.stats || {
                 total_files: 0,
@@ -446,7 +466,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 days_until_reset: 30,
                 current_period_size: 0
             });
+            
             loadingMessage.style.display = 'none';
+
         } catch (error) {
             console.error('Failed to load files:', error);
             loadingMessage.textContent = `Error: ${error.message}`;
@@ -457,6 +479,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // Initialize
     fetchAndDisplayFiles();
+    
+    // Update countdown every day
     setInterval(fetchAndDisplayFiles, 24 * 60 * 60 * 1000);
 });
