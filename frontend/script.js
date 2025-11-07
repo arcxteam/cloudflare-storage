@@ -131,63 +131,71 @@ document.addEventListener('DOMContentLoaded', () => {
         
         fileSliderContainer.style.display = 'block';
         currentSlide = 0;
-        let slideIndex = 0;
-
-        // Loop melalui file dalam 'potongan' (chunks) untuk mencegah slide kosong
-        for (let i = 0; i < filteredFiles.length; i += filesPerSlide) {
+        
+        // Hitung jumlah slide yang dibutuhkan
+        const slideCount = Math.ceil(filteredFiles.length / filesPerSlide);
+        
+        // Buat slide sebanyak slideCount
+        for (let i = 0; i < slideCount; i++) {
             const slide = document.createElement('div');
             slide.className = 'file-slide';
-            if (slideIndex === currentSlide) slide.classList.add('active');
+            if (i === currentSlide) slide.classList.add('active');
             
-            const chunk = filteredFiles.slice(i, i + filesPerSlide);
+            // Tentukan indeks file untuk slide ini
+            const startIdx = i * filesPerSlide;
+            const endIdx = Math.min(startIdx + filesPerSlide, filteredFiles.length);
             
-            chunk.forEach(file => {
-                const fileCard = document.createElement('div');
-                fileCard.className = 'file-card';
+            // Pastikan slide ini memiliki file
+            if (startIdx < filteredFiles.length) {
+                // Tambahkan file ke slide
+                for (let j = startIdx; j < endIdx; j++) {
+                    const file = filteredFiles[j];
+                    const fileCard = document.createElement('div');
+                    fileCard.className = 'file-card';
+                    
+                    fileCard.innerHTML = `
+                        <div class="file-card-header">
+                            <i class="fas ${getFileIcon(file.key)}"></i>
+                            <h5 class="file-card-title">${file.key}</h5>
+                        </div>
+                        <div class="file-card-body">
+                            <div class="meta-item">
+                                <span>Size:</span>
+                                <span>${formatFileSize(file.size)}</span>
+                            </div>
+                            <div class="meta-item">
+                                <span>Modified:</span>
+                                <span>${formatDate(file.last_modified)}</span>
+                            </div>
+                        </div>
+                        <div class="file-card-footer">
+                            <span class="download-count"><i class="fas fa-download"></i> ${file.download_count} times</span>
+                            <div>
+                                <button class="btn btn-download btn-sm" data-filename="${file.key}">
+                                    <i class="fas fa-file-arrow-down"></i>
+                                </button>
+                                <button class="btn btn-copy btn-sm" data-filename="${file.key}" data-public-url="${file.public_url}">
+                                    <i class="fas fa-arrow-up-from-bracket"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    slide.appendChild(fileCard);
+                }
                 
-                fileCard.innerHTML = `
-                    <div class="file-card-header">
-                        <i class="fas ${getFileIcon(file.key)}"></i>
-                        <h5 class="file-card-title">${file.key}</h5>
-                    </div>
-                    <div class="file-card-body">
-                        <div class="meta-item">
-                            <span>Size:</span>
-                            <span>${formatFileSize(file.size)}</span>
-                        </div>
-                        <div class="meta-item">
-                            <span>Modified:</span>
-                            <span>${formatDate(file.last_modified)}</span>
-                        </div>
-                    </div>
-                    <div class="file-card-footer">
-                        <span class="download-count"><i class="fas fa-download"></i> ${file.download_count} times</span>
-                        <div>
-                            <button class="btn btn-download btn-sm" data-filename="${file.key}">
-                                <i class="fas fa-file-arrow-down"></i>
-                            </button>
-                            <button class="btn btn-copy btn-sm" data-filename="${file.key}" data-public-url="${file.public_url}">
-                                <i class="fas fa-arrow-up-from-bracket"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
-                slide.appendChild(fileCard);
-            });
-            
-            fileList.appendChild(slide);
-            
-            const indicator = document.createElement('div');
-            indicator.className = 'indicator';
-            if (slideIndex === currentSlide) indicator.classList.add('active');
-            indicator.addEventListener('click', () => goToSlide(slideIndex));
-            sliderIndicators.appendChild(indicator);
-            
-            slideIndex++;
+                fileList.appendChild(slide);
+                
+                // Buat indikator untuk slide ini
+                const indicator = document.createElement('div');
+                indicator.className = 'indicator';
+                if (i === currentSlide) indicator.classList.add('active');
+                indicator.addEventListener('click', () => goToSlide(i));
+                sliderIndicators.appendChild(indicator);
+            }
         }
         
-        const totalSlides = Math.ceil(filteredFiles.length / filesPerSlide);
-        if (totalSlides > 1) {
+        // Tampilkan kontrol slider jika ada lebih dari satu slide
+        if (slideCount > 1) {
             sliderControls.style.display = 'flex';
             sliderIndicators.style.display = 'flex';
         } else {
@@ -209,6 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const updateSlidePosition = () => {
         const slides = document.querySelectorAll('.file-slide');
         if(slides.length === 0) return;
+        
         slides.forEach((slide, i) => {
             slide.style.transform = `translateX(${(i - currentSlide) * 100}%)`;
         });
@@ -282,8 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             await navigator.clipboard.writeText(publicUrl);
             
-            // Ubah tampilan tombol menjadi "Copied"
-            button.innerHTML = '<i class="fas fa-check"></i> Copied';
+            button.innerHTML = '<i class="fas fa-check"></i> Copied!';
             button.disabled = true;
 
             // Kembalikan ke tampilan semula setelah 2 detik
