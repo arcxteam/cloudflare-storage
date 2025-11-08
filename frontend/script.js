@@ -1,4 +1,4 @@
-// Update script.js v1.0.9
+// Update script.js v1.1.0
 document.addEventListener('DOMContentLoaded', () => {
     const uploadForm = document.getElementById('uploadForm');
     const fileInput = document.getElementById('fileInput');
@@ -116,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 300);
     };
 
-    // --- Function sliding windows (PERBAIKAN) ---
+    // --- Function sliding windows (DIPERBAIKI v1.1.0) ---
     const createFileSlides = () => {
         fileList.innerHTML = '';
         sliderIndicators.innerHTML = '';
@@ -132,70 +132,107 @@ document.addEventListener('DOMContentLoaded', () => {
         fileSliderContainer.style.display = 'block';
         currentSlide = 0;
         
-        // Hitung jumlah slide yang dibutuhkan
         const slideCount = Math.ceil(filteredFiles.length / filesPerSlide);
         
-        // Buat slide sebanyak slideCount
         for (let i = 0; i < slideCount; i++) {
             const slide = document.createElement('div');
             slide.className = 'file-slide';
             if (i === currentSlide) slide.classList.add('active');
             
-            // Tentukan indeks file untuk slide ini
             const startIdx = i * filesPerSlide;
             const endIdx = Math.min(startIdx + filesPerSlide, filteredFiles.length);
             
-            // Pastikan slide ini memiliki file
-            if (startIdx < filteredFiles.length) {
-                // Tambahkan file ke slide
-                for (let j = startIdx; j < endIdx; j++) {
+            // Pastikan ada file untuk diproses
+            if (startIdx >= endIdx) continue;
+            
+            // Counter untuk track file yang berhasil ditambahkan
+            let filesAdded = 0;
+            
+            // Tambahkan file ke slide
+            for (let j = startIdx; j < endIdx; j++) {
+                // Try-catch untuk setiap file card
+                try {
                     const file = filteredFiles[j];
+                    
+                    // Validasi file object
+                    if (!file || typeof file !== 'object') {
+                        console.warn(`File index ${j} invalid:`, file);
+                        continue;
+                    }
+                    
                     const fileCard = document.createElement('div');
                     fileCard.className = 'file-card';
                     
+                    // Escape HTML untuk mencegah error dari karakter khusus
+                    const escapeHtml = (str) => {
+                        const div = document.createElement('div');
+                        div.textContent = str;
+                        return div.innerHTML;
+                    };
+                    
                     fileCard.innerHTML = `
                         <div class="file-card-header">
-                            <i class="fas ${getFileIcon(file.key)}"></i>
-                            <h5 class="file-card-title">${file.key}</h5>
+                            <i class="fas ${getFileIcon(file.key || 'unknown')}"></i>
+                            <h5 class="file-card-title">${escapeHtml(file.key || 'Unknown file')}</h5>
                         </div>
                         <div class="file-card-body">
                             <div class="meta-item">
                                 <span>Size:</span>
-                                <span>${formatFileSize(file.size)}</span>
+                                <span>${formatFileSize(file.size || 0)}</span>
                             </div>
                             <div class="meta-item">
                                 <span>Modified:</span>
-                                <span>${formatDate(file.last_modified)}</span>
+                                <span>${formatDate(file.last_modified || new Date())}</span>
                             </div>
                         </div>
                         <div class="file-card-footer">
-                            <span class="download-count"><i class="fas fa-download"></i> ${file.download_count} times</span>
+                            <span class="download-count"><i class="fas fa-download"></i> ${file.download_count || 0} times</span>
                             <div>
-                                <button class="btn btn-download btn-sm" data-filename="${file.key}">
+                                <button class="btn btn-download btn-sm" data-filename="${escapeHtml(file.key || '')}">
                                     <i class="fas fa-file-arrow-down"></i>
                                 </button>
-                                <button class="btn btn-copy btn-sm" data-filename="${file.key}" data-public-url="${file.public_url}">
+                                <button class="btn btn-copy btn-sm" data-filename="${escapeHtml(file.key || '')}" data-public-url="${escapeHtml(file.public_url || '')}">
                                     <i class="fas fa-arrow-up-from-bracket"></i>
                                 </button>
                             </div>
                         </div>
                     `;
+                    
                     slide.appendChild(fileCard);
+                    filesAdded++;
+                    
+                } catch (error) {
+                    // Log error tapi lanjutkan ke file berikutnya
+                    console.error(`Error creating card for file index ${j}:`, error);
+                    continue;
                 }
-                
+            }
+            
+            // Hanya append slide jika ada file yang berhasil ditambahkan
+            if (filesAdded > 0) {
                 fileList.appendChild(slide);
                 
-                // Buat indikator untuk slide ini
                 const indicator = document.createElement('div');
                 indicator.className = 'indicator';
                 if (i === currentSlide) indicator.classList.add('active');
                 indicator.addEventListener('click', () => goToSlide(i));
                 sliderIndicators.appendChild(indicator);
+            } else {
+                console.warn(`Slide ${i} tidak memiliki file valid, dilewati`);
             }
         }
         
-        // Tampilkan kontrol slider jika ada lebih dari satu slide
-        if (slideCount > 1) {
+        // Validasi apakah ada slide yang terbuat
+        const actualSlides = fileList.querySelectorAll('.file-slide');
+        if (actualSlides.length === 0) {
+            fileList.innerHTML = '<p class="text-center text-muted">No valid files to display.</p>';
+            fileSliderContainer.style.display = 'none';
+            sliderControls.style.display = 'none';
+            sliderIndicators.style.display = 'none';
+            return;
+        }
+        
+        if (actualSlides.length > 1) {
             sliderControls.style.display = 'flex';
             sliderIndicators.style.display = 'flex';
         } else {
@@ -205,7 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         updateSlidePosition();
         
-        // Pasang kembali event listener ke tombol-tombol baru
+        // Pasang kembali event listener
         document.querySelectorAll('.btn-download').forEach(button => {
             button.addEventListener('click', handleDownloadClick);
         });
@@ -245,7 +282,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentSlide < totalSlides - 1) goToSlide(currentSlide + 1);
     });
 
-    // --- Function handle download (PERBAIKAN) ---
+    // --- Function handle download ---
     const handleDownloadClick = async (e) => {
         const button = e.currentTarget;
         const filename = button.dataset.filename;
@@ -270,7 +307,6 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
             
-            // Refresh daftar file setelah download berhasil
             fetchAndDisplayFiles();
 
         } catch (error) {
@@ -282,7 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- Function handle copy (PERBAIKAN) ---
+    // --- Function handle copy ---
     const handleCopyClick = async (e) => {
         const button = e.currentTarget;
         const publicUrl = button.dataset.publicUrl;
@@ -294,7 +330,6 @@ document.addEventListener('DOMContentLoaded', () => {
             button.innerHTML = '<i class="fas fa-check"></i> Copied!';
             button.disabled = true;
 
-            // Kembalikan ke tampilan semula setelah 2 detik
             setTimeout(() => {
                 button.innerHTML = originalHTML;
                 button.disabled = false;
@@ -306,7 +341,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- Upload progress bar (PERBAIKAN) ---
+    // --- Upload progress bar ---
     const uploadFileXHR = (file, callback) => {
         const formData = new FormData();
         formData.append('file', file);
@@ -317,7 +352,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.lengthComputable) {
                 const percent = (e.loaded / e.total) * 100;
                 progressBar.style.width = `${percent}%`;
-                // Teks persentase di dalam bar telah dihapus
                 progressContainer.style.display = 'block';
             }
         };
@@ -325,7 +359,6 @@ document.addEventListener('DOMContentLoaded', () => {
         xhr.onload = () => {
             progressContainer.style.display = 'none';
             progressBar.style.width = '0%';
-            // Teks persentase di dalam bar telah dihapus
 
             if (xhr.status === 200) {
                 try {
