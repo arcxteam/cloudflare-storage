@@ -1,4 +1,4 @@
-// Update script.js v1.1.0
+// Update script.js v1.1.1
 document.addEventListener('DOMContentLoaded', () => {
     const uploadForm = document.getElementById('uploadForm');
     const fileInput = document.getElementById('fileInput');
@@ -116,8 +116,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 300);
     };
 
-    // --- Function sliding windows (DIPERBAIKI v1.1.0) ---
+    // --- Function sliding windows (DIPERBAIKI v1.1.1) ---
     const createFileSlides = () => {
+        console.log('[createFileSlides] Starting with', filteredFiles.length, 'files');
+        
         fileList.innerHTML = '';
         sliderIndicators.innerHTML = '';
         
@@ -133,30 +135,35 @@ document.addEventListener('DOMContentLoaded', () => {
         currentSlide = 0;
         
         const slideCount = Math.ceil(filteredFiles.length / filesPerSlide);
+        console.log('[createFileSlides] Creating', slideCount, 'slides');
+        
+        let actualSlidesCreated = 0;
         
         for (let i = 0; i < slideCount; i++) {
-            const slide = document.createElement('div');
-            slide.className = 'file-slide';
-            if (i === currentSlide) slide.classList.add('active');
-            
             const startIdx = i * filesPerSlide;
             const endIdx = Math.min(startIdx + filesPerSlide, filteredFiles.length);
             
             // Pastikan ada file untuk diproses
-            if (startIdx >= endIdx) continue;
+            if (startIdx >= endIdx) {
+                console.warn(`[createFileSlides] Slide ${i} skipped: startIdx >= endIdx`);
+                continue;
+            }
             
             // Counter untuk track file yang berhasil ditambahkan
             let filesAdded = 0;
             
+            const slide = document.createElement('div');
+            slide.className = 'file-slide';
+            slide.setAttribute('data-slide-index', i);
+            
             // Tambahkan file ke slide
             for (let j = startIdx; j < endIdx; j++) {
-                // Try-catch untuk setiap file card
                 try {
                     const file = filteredFiles[j];
                     
                     // Validasi file object
                     if (!file || typeof file !== 'object') {
-                        console.warn(`File index ${j} invalid:`, file);
+                        console.warn(`[createFileSlides] File index ${j} invalid:`, file);
                         continue;
                     }
                     
@@ -202,8 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     filesAdded++;
                     
                 } catch (error) {
-                    // Log error tapi lanjutkan ke file berikutnya
-                    console.error(`Error creating card for file index ${j}:`, error);
+                    console.error(`[createFileSlides] Error creating card for file index ${j}:`, error);
                     continue;
                 }
             }
@@ -214,16 +220,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 const indicator = document.createElement('div');
                 indicator.className = 'indicator';
-                if (i === currentSlide) indicator.classList.add('active');
-                indicator.addEventListener('click', () => goToSlide(i));
+                indicator.setAttribute('data-indicator-index', i);
+                indicator.addEventListener('click', () => goToSlide(actualSlidesCreated));
                 sliderIndicators.appendChild(indicator);
+                
+                console.log(`[createFileSlides] Slide ${actualSlidesCreated} created with ${filesAdded} files (original index: ${i})`);
+                actualSlidesCreated++;
             } else {
-                console.warn(`Slide ${i} tidak memiliki file valid, dilewati`);
+                console.warn(`[createFileSlides] Slide ${i} tidak memiliki file valid, dilewati`);
             }
         }
         
         // Validasi apakah ada slide yang terbuat
         const actualSlides = fileList.querySelectorAll('.file-slide');
+        console.log('[createFileSlides] Total slides in DOM:', actualSlides.length);
+        
         if (actualSlides.length === 0) {
             fileList.innerHTML = '<p class="text-center text-muted">No valid files to display.</p>';
             fileSliderContainer.style.display = 'none';
@@ -240,7 +251,14 @@ document.addEventListener('DOMContentLoaded', () => {
             sliderIndicators.style.display = 'none';
         }
         
-        updateSlidePosition();
+        // PENTING: Set currentSlide to 0 before updating position
+        currentSlide = 0;
+        
+        // Update position dengan delay kecil untuk memastikan DOM sudah ready
+        setTimeout(() => {
+            updateSlidePosition();
+            console.log('[createFileSlides] Initial slide position updated');
+        }, 10);
         
         // Pasang kembali event listener
         document.querySelectorAll('.btn-download').forEach(button => {
@@ -251,35 +269,80 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+    // --- Function update slide position (DIPERBAIKI v1.1.1) ---
     const updateSlidePosition = () => {
         const slides = document.querySelectorAll('.file-slide');
-        if(slides.length === 0) return;
         
-        slides.forEach((slide, i) => {
-            slide.style.transform = `translateX(${(i - currentSlide) * 100}%)`;
+        if (slides.length === 0) {
+            console.warn('[updateSlidePosition] No slides found');
+            return;
+        }
+        
+        // Validasi dan koreksi currentSlide
+        if (currentSlide >= slides.length) {
+            console.warn(`[updateSlidePosition] currentSlide ${currentSlide} >= slides.length ${slides.length}, resetting to last slide`);
+            currentSlide = slides.length - 1;
+        }
+        if (currentSlide < 0) {
+            console.warn(`[updateSlidePosition] currentSlide ${currentSlide} < 0, resetting to 0`);
+            currentSlide = 0;
+        }
+        
+        console.log(`[updateSlidePosition] Updating to slide ${currentSlide} of ${slides.length}`);
+        
+        // PENTING: Hapus semua class active terlebih dahulu
+        slides.forEach((slide) => {
+            slide.classList.remove('active');
         });
         
+        // Set transform dan active class
+        slides.forEach((slide, i) => {
+            const translateX = (i - currentSlide) * 100;
+            slide.style.transform = `translateX(${translateX}%)`;
+            
+            if (i === currentSlide) {
+                slide.classList.add('active');
+            }
+            
+            console.log(`  Slide ${i}: translateX(${translateX}%), active: ${i === currentSlide}`);
+        });
+        
+        // Update indicators
         const indicators = document.querySelectorAll('.indicator');
         indicators.forEach((ind, i) => {
             ind.classList.toggle('active', i === currentSlide);
         });
         
+        // Update navigation buttons
         prevSlide.disabled = currentSlide === 0;
         nextSlide.disabled = currentSlide === (slides.length - 1);
+        
+        console.log(`[updateSlidePosition] Prev disabled: ${currentSlide === 0}, Next disabled: ${currentSlide === (slides.length - 1)}`);
     };
 
     const goToSlide = (index) => {
-        currentSlide = index;
-        updateSlidePosition();
+        const slides = document.querySelectorAll('.file-slide');
+        
+        if (index >= 0 && index < slides.length) {
+            console.log(`[goToSlide] Moving from slide ${currentSlide} to ${index}`);
+            currentSlide = index;
+            updateSlidePosition();
+        } else {
+            console.warn(`[goToSlide] Invalid index ${index}, slides.length: ${slides.length}`);
+        }
     };
 
     prevSlide.addEventListener('click', () => {
-        if (currentSlide > 0) goToSlide(currentSlide - 1);
+        if (currentSlide > 0) {
+            goToSlide(currentSlide - 1);
+        }
     });
 
     nextSlide.addEventListener('click', () => {
-        const totalSlides = Math.ceil(filteredFiles.length / filesPerSlide);
-        if (currentSlide < totalSlides - 1) goToSlide(currentSlide + 1);
+        const slides = document.querySelectorAll('.file-slide');
+        if (currentSlide < slides.length - 1) {
+            goToSlide(currentSlide + 1);
+        }
     });
 
     // --- Function handle download ---
@@ -467,6 +530,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 );
             }
             
+            console.log(`[search] Found ${filteredFiles.length} files matching "${searchTerm}"`);
             currentSlide = 0;
             createFileSlides();
         }, 300);
@@ -496,6 +560,8 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const result = await response.json();
             
+            console.log('[fetchAndDisplayFiles] Received', result.files?.length || 0, 'files from API');
+            
             allFiles = result.files || [];
             filteredFiles = [...allFiles];
             
@@ -511,7 +577,7 @@ document.addEventListener('DOMContentLoaded', () => {
             loadingMessage.style.display = 'none';
 
         } catch (error) {
-            console.error('Failed to load files:', error);
+            console.error('[fetchAndDisplayFiles] Failed to load files:', error);
             loadingMessage.textContent = `Error: ${error.message}`;
             loadingMessage.style.color = '#e74c3c';
             allFiles = [];
@@ -521,6 +587,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Initialize
+    console.log('[init] Initializing Bucket Files Manager v1.1.1');
     fetchAndDisplayFiles();
     
     // Update countdown every day
