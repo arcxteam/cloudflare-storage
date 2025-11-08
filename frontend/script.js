@@ -1,4 +1,4 @@
-// Update script.js v1.0.9
+// Update script.js v1.1.2
 document.addEventListener('DOMContentLoaded', () => {
     const uploadForm = document.getElementById('uploadForm');
     const fileInput = document.getElementById('fileInput');
@@ -133,16 +133,15 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const slideCount = Math.ceil(filteredFiles.length / filesPerSlide);
         
-        currentSlide = 0;
-        
+        // Create slides
         for (let i = 0; i < slideCount; i++) {
             const slide = document.createElement('div');
             slide.className = 'file-slide';
-            if (i === currentSlide) slide.classList.add('active');
             
             const startIdx = i * filesPerSlide;
             const endIdx = Math.min(startIdx + filesPerSlide, filteredFiles.length);
             
+            // Add files to slide
             for (let j = startIdx; j < endIdx; j++) {
                 const file = filteredFiles[j];
                 const fileCard = document.createElement('div');
@@ -175,18 +174,21 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
                 `;
+                
                 slide.appendChild(fileCard);
             }
             
             fileList.appendChild(slide);
             
+            // Create indicator
             const indicator = document.createElement('div');
             indicator.className = 'indicator';
-            if (i === currentSlide) indicator.classList.add('active');
+            if (i === 0) indicator.classList.add('active');
             indicator.addEventListener('click', () => goToSlide(i));
             sliderIndicators.appendChild(indicator);
         }
         
+        // Show controls if more than one slide
         if (slideCount > 1) {
             sliderControls.style.display = 'flex';
             sliderIndicators.style.display = 'flex';
@@ -195,8 +197,11 @@ document.addEventListener('DOMContentLoaded', () => {
             sliderIndicators.style.display = 'none';
         }
         
+        // Reset to first slide
+        currentSlide = 0;
         updateSlidePosition();
         
+        // Attach event listeners
         document.querySelectorAll('.btn-download').forEach(button => {
             button.addEventListener('click', handleDownloadClick);
         });
@@ -206,81 +211,101 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const updateSlidePosition = () => {
-        const slides = document.querySelectorAll('.file-slide');
-        slides.forEach((slide, i) => {
-            slide.style.transform = `translateX(${(i - currentSlide) * 100}%)`;
-        });
+        // Transform the container (fileList)
+        fileList.style.transform = `translateX(-${currentSlide * 100}%)`;
         
+        // Update indicators
         const indicators = document.querySelectorAll('.indicator');
-        indicators.forEach((ind, i) => {
-            ind.classList.toggle('active', i === currentSlide);
+        indicators.forEach((indicator, index) => {
+            if (index === currentSlide) {
+                indicator.classList.add('active');
+            } else {
+                indicator.classList.remove('active');
+            }
         });
         
+        // Update button states
         prevSlide.disabled = currentSlide === 0;
-        nextSlide.disabled = currentSlide === (slides.length - 1);
+        nextSlide.disabled = currentSlide === (Math.ceil(filteredFiles.length / filesPerSlide) - 1);
     };
 
-    const goToSlide = (index) => {
-        currentSlide = index;
+    const goToSlide = (slideIndex) => {
+        currentSlide = slideIndex;
         updateSlidePosition();
     };
 
+    // Event listeners for slider controls
     prevSlide.addEventListener('click', () => {
-        if (currentSlide > 0) goToSlide(currentSlide - 1);
+        if (currentSlide > 0) {
+            currentSlide--;
+            updateSlidePosition();
+        }
     });
 
     nextSlide.addEventListener('click', () => {
-        const totalSlides = Math.ceil(filteredFiles.length / filesPerSlide);
-        if (currentSlide < totalSlides - 1) goToSlide(currentSlide + 1);
+        if (currentSlide < Math.ceil(filteredFiles.length / filesPerSlide) - 1) {
+            currentSlide++;
+            updateSlidePosition();
+        }
     });
 
-    // --- Function handle download & copy ---
-    const handleFileAction = async (filename, publicUrl, action) => {
-        console.log('handleFileAction called with:', { filename, publicUrl, action });
-    
-        try {
-            if (action === 'download') {
-                const downloadUrl = `/api/serve-file/${encodeURIComponent(filename)}?t=${Date.now()}`;
-                console.log('Final download URL:', downloadUrl);
-            
-                const response = await fetch(downloadUrl, { cache: 'no-cache' });
-                if (!response.ok) throw new Error('Download failed');
-                
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-                a.setAttribute('download', filename);
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-            
-            } else if (action === 'copy') {
-                await navigator.clipboard.writeText(publicUrl);
-                showNotification('Link copied!', 'success');
-            }
-
-            fetchAndDisplayFiles();
-
-        } catch (error) {
-            console.error('Action failed:', error);
-            showNotification('Action failed. Please try again.', 'error');
-        }
-    };
-    
+    // --- Function handle download ---
     const handleDownloadClick = async (e) => {
         const button = e.currentTarget;
         const filename = button.dataset.filename;
-        await handleFileAction(filename, null, 'download');
+        const originalHTML = button.innerHTML;
+        
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        button.disabled = true;
+
+        try {
+            const downloadUrl = `/api/serve-file/${encodeURIComponent(filename)}?t=${Date.now()}`;
+            const response = await fetch(downloadUrl, { cache: 'no-cache' });
+            if (!response.ok) throw new Error('Download failed');
+            
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.setAttribute('download', filename);
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            fetchAndDisplayFiles();
+
+        } catch (error) {
+            console.error('Download failed:', error);
+            showNotification('Download failed. Please try again.', 'error');
+        } finally {
+            button.innerHTML = originalHTML;
+            button.disabled = false;
+        }
     };
 
+    // --- Function handle copy & share ---
     const handleCopyClick = async (e) => {
         const button = e.currentTarget;
-        const filename = button.dataset.filename;
         const publicUrl = button.dataset.publicUrl;
-        await handleFileAction(filename, publicUrl, 'copy');
+        const originalHTML = button.innerHTML;
+        
+        try {
+            await navigator.clipboard.writeText(publicUrl);
+            
+            button.innerHTML = '<i class="fas fa-check"></i> Copied!';
+            button.disabled = true;
+
+            setTimeout(() => {
+                button.innerHTML = originalHTML;
+                button.disabled = false;
+            }, 2000);
+
+        } catch (error) {
+            console.error('Copy failed:', error);
+            showNotification('Failed to copy link.', 'error');
+        }
     };
 
     // --- Upload progress bar ---
@@ -294,7 +319,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.lengthComputable) {
                 const percent = (e.loaded / e.total) * 100;
                 progressBar.style.width = `${percent}%`;
-                progressBar.textContent = `${Math.round(percent)}%`;
                 progressContainer.style.display = 'block';
             }
         };
@@ -302,7 +326,6 @@ document.addEventListener('DOMContentLoaded', () => {
         xhr.onload = () => {
             progressContainer.style.display = 'none';
             progressBar.style.width = '0%';
-            progressBar.textContent = '0%';
 
             if (xhr.status === 200) {
                 try {
@@ -396,7 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- Funct searching ---
+    // --- Function searching ---
     let searchTimeout;
     searchInput.addEventListener('input', (e) => {
         clearTimeout(searchTimeout);
