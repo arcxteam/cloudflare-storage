@@ -1,4 +1,4 @@
-<h1 align="center">Supercharge Your Buckets Files with Cloudflare R2 Storage</h1>
+<h1 align="center">**Supercharge Your Buckets Files with Cloudflare R2 Storage**</h1>
 
 
 > [!IMPORTANT]
@@ -7,10 +7,10 @@
 > **© Greyscope&Co | 0xgrey** resulting in a compactibility and intuitive storage clouding but securing. The project not only meets current needs but also anticipates personal requirements, ensuring a seamless and secure user experience.
 
 
-## Preview Frontend Web UI Dashboard
+## **Preview Frontend Web UI Dashboard**
 > https://arcxteam.github.io/cloudflare-storage/frontend/
 
-### A Comprehensive Guide: How to Set Up Private Storage with Cloudflare R2 Bucket and S3 API Compatibility
+### **A Comprehensive Guide: How to Set Up Private Storage with Cloudflare R2 Bucket and S3 API Compatibility**
 
 ## **Structure Folder & File**
 
