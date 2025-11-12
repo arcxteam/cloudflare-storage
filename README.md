@@ -2,7 +2,7 @@
 
 <p align="center">
   <strong>A Comprehensive Guide: How to Set Up Private Storage with Cloudflare R2 Buckets and S3 API Compatibility</strong><br>
-  <em>Supports continuous full stack deployment, a powerful and user-friendly private file storage management</em>
+  <em>Craft your personalized storage buckets, forging a realm of effortless file management and securely by Cloudflare R2</em>
 </p>
 
 <p align="center">
@@ -21,13 +21,14 @@
 
 ### Key Features
 
-- 🔄 **Continuous Monitoring**: Automatically detects and converts new model updates from HuggingFace repositories
-- 🤖 **Auto-Detection**: Intelligent tokenizer detection for 50+ popular model architectures (Qwen, Llama, Mistral, Phi, Gemma, etc.)
-- 📦 **Multiple Quantization**: Supports F16, F32, BF16, and all K-quant formats (Q2_K to Q8_0)
-- 🎯 **Flexible Deploy**: Three (3) upload modes - same repository, new repository, or local-only storage
-- 🧹 **Smart Cleanup**: Automatic temporary file management to prevent storage used
-- 🐳 **Docker**: Fully container with optimized build times and resource usage
-- 📊 **Progress Tracking**: Clean, milestone-based logging with colorized console output
+- ❇️ **Support Continuous**: FullStack deployment (backend-frontend), compatible UI/UX on Mobile & Desktop
+- 📊 **Bucket Status**: Realtime data, progress bar, bucket file stored, bucket size stored, unBucket size stored and bucket time reset (manage 10GB/monthly)
+- 📁 **Bucket Files**: Fastest upload file upto 1GB-more (can setup), search filename, counting download, copy/sharelink, mode RAW file
+- 🎨 **UI Multiple Icons**: Supports all icon media file and effects, 6 file per/slide windows
+- 🧩 **Flexible Deploy**: The storage is compatibility with Amazon S3 API (boto3)
+- 🗑️ **Trash & Burn**: Total cleanup storage file management to prevent global S3/R2
+- 🐳 **Docker**: Ready for production/development, fully container optimized double/redirect host proxy, fastest no-caching built-in config nginx & resource usage monitoring
+- ☁️ **Cloudflare**: By infrastucture R2 private storage and securely
 
 ### **Preview Frontend Web UI Dashboard**
 > https://arcxteam.github.io/cloudflare-storage/frontend/
@@ -76,10 +77,10 @@ cloudflare-storage/
 ## **Quick Start**
 ### 1. Prerequisites
 
-**Signup to Cloudflare Access**
-- Visit R2 settings → https://dash.cloudflare.com/?to=/:account/r2/overview
-- Buy domains up to you (Recommended for use cloudflare infra)
-- 
+**Signup & Securely Cloudflare Access**
+- Dashboard R2 settings → https://dash.cloudflare.com/?to=/:account/r2/overview
+- Buy domain up to you (Recommended for use an infra cloudflare)
+- Free tier is limit Per/month 10GB (resetting)
 
 **Install Docker & Compose** <mark>if not already installed</mark>
 > Instal docker is optional, if you don't have.. try securely
@@ -128,9 +129,9 @@ PUBLIC_BASE_URL=https://your-domain.com or sub-domain
 2. **Chosee Storage & database** → **R2 Object Storage** →  **Overview**
 3. **Create bucket**
 4. **Add Detail Bucket:**
-     - **Bucket name**: Create unique name
+     - **Bucket name**: Create unique
      - **Location**: Automatic
-5. **Save "Create bucket"**
+5. **Save → Create bucket**
 
 ### Create R2 API token
 1. Return to **R2**, then select **Manage R2 API tokens**.
@@ -156,7 +157,7 @@ PUBLIC_BASE_URL=https://your-domain.com or sub-domain
 - **Allowed origins**: `http://localhost:5000, http://127.0.0.1:5000`
 - **Other are same** & **TLS 1.3** optional
 
-<mark>Choose one above - JSON format</mark>
+<mark>Choose one CORS above, a format JSON</mark>
 ```json
 [
   {
@@ -168,7 +169,7 @@ PUBLIC_BASE_URL=https://your-domain.com or sub-domain
 ]
 ```
 
-### 3. **Build and Start**
+### 3. Build and Start
 > Starting running
 
 ```
