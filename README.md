@@ -7,8 +7,8 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Release-v1.1.2-FF0069" alt="Version">
-  <img src="https://img.shields.io/badge/Amazon_S3-AWS-brightgreen" alt="AWS">
   <img src="https://img.shields.io/badge/R2-Cloudflare-orange" alt="cloudflare">
+  <img src="https://img.shields.io/badge/Amazon_S3-AWS-brightgreen" alt="AWS">
   <img src="https://img.shields.io/badge/Buckets-Private_Storage-blue" alt="Storage">
   <a href="https://github.com/arcxteam/cloudflare-storage/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-green" alt="License"></a>
 </p>
@@ -102,7 +102,63 @@ cd cloudflare-storage
 cp .env.example .env
 nano .env
 ```
+> Example config environment variable
 
+```diff
+R2_ACCOUNT_ID=YOUR_ACCOUNT_ID
+R2_ACCESS_KEY_ID=YOUR_ACCESS_KEY_ID
+R2_SECRET_ACCESS_KEY=YOUR_SECRET_ACCESS_KEY
+R2_BUCKET_NAME=YOUR_NAME_CREATE_BUCKETS
++ Enabled (Public Development URL or Custom Domains, Create Record A sub-sub-domain)
+R2_PUBLIC_URL=https://pub-xxxxx.r2.dev or https://sub-sub-your-domain.com
+
+# NOTE: Choose one, personal access web-ui dashboard (upload/download)
++ Option A: IP Public server
+PUBLIC_BASE_URL=http://your-ip-address
+
++ Option B: Localnetwork (VSCode/Codespaces/etc)
+PUBLIC_BASE_URL=http://localhost
+
++ Option C: Custom domains
+PUBLIC_BASE_URL=https://your-domain.com or sub-domain
+````
+
+### Create an R2 API token
+
+1. Return to **R2**, then select **Manage R2 API tokens**.
+2. Select **Create Account API Tokens**.
+3. In **Permissions**, select **Object Read & Write**.
+4. In **Specify bucket(s)**, choose *Apply to specific buckets only*. Select the bucket you created.
+5. For **TTL** default is **forever** or Define how long this token will stay active:
+6. For **Client IP Address Filtering** no have action default is blank/null
+7. Select **Create API Token**.
+8. Copy the **Access Key ID**, **Secret Access Key**, and endpoint URL values. You will not be able to access these values again.
+9. Select **Finish**.
+
+### Config CORS Policy
+> 1. Use mode Custom Domain (Production)
+- **Policy name**: `web-app-cors`
+- **Allowed origins**: `https://your-domain`
+- **Allowed methods**: Pilih `GET`, `POST`, `PUT`, `DELETE`, `HEAD`
+- **Allowed headers**: `*`
+- **Max age seconds**: `86400`
+- **Click "Add policy or save"`**
+> 2. Use mode Localhost/Development
+- **Policy name**: `dev-cors-policy`
+- **Allowed origins**: `http://localhost:5000, http://127.0.0.1:5000`
+- **Other are same** & **TLS 1.3** optional
+
+<mark>Choose one above - JSON format</mark>
+```json
+[
+  {
+    "AllowedOrigins": ["https://your-domain", "http://localhost:5000", "http://127.0.0.1:5000"],
+    "AllowedMethods": ["GET", "POST", "PUT", "DELETE", "HEAD"],
+    "AllowedHeaders": ["*"],
+    "MaxAgeSeconds": 86400
+  }
+]
+```
 
 ### 3. **Build and Start**
 > Starting running
