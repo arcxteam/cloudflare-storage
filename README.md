@@ -121,10 +121,18 @@ PUBLIC_BASE_URL=http://localhost
 
 + Option C: Custom domains
 PUBLIC_BASE_URL=https://your-domain.com or sub-domain
-````
+```
 
-### Create an R2 API token
+### Create Buckets
+1. **Access Dashboard Cloudflare**
+2. **Chosee Storage & database** → **R2 Object Storage** →  **Overview**
+3. **Create bucket**
+4. **Add Detail Bucket:**
+     - **Bucket name**: Create unique name
+     - **Location**: Automatic
+5. **Save "Create bucket"**
 
+### Create R2 API token
 1. Return to **R2**, then select **Manage R2 API tokens**.
 2. Select **Create Account API Tokens**.
 3. In **Permissions**, select **Object Read & Write**.
