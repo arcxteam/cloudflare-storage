@@ -2,7 +2,7 @@ server {
     listen 80;
     server_name _;  # CATCH-ALL COMPATIBLE
 
-    # === OPTIMAL UPLOAD & DOWNLOAD ===
+    # OPTIMAL UPLOAD & DOWNLOAD
     client_max_body_size 1G;
     client_body_buffer_size 128k;
     client_body_in_file_only clean;
@@ -12,7 +12,7 @@ server {
     send_timeout 300s;
     proxy_request_buffering off;
 
-    # === TRANSFER OPTIMIZATION ===
+    # TRANSFER OPTIMIZATION
     sendfile on;
     tcp_nopush on;
     tcp_nodelay on;
@@ -20,12 +20,12 @@ server {
     directio 4m;
     output_buffers 1 1m;
 
-    # === KEEP ALIVE ===
+    # KEEP ALIVE
     keepalive_timeout 300s;
     keepalive_requests 1000;
     keepalive_disable none;
 
-    # === SECURITY HEADERS ===
+    # SECURITY HEADERS
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-XSS-Protection "1; mode=block" always;
     add_header X-Content-Type-Options "nosniff" always;
@@ -34,7 +34,7 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
-    # === API PROXY FLASK ===
+    # API PROXY FLASK
     location ~ ^/api/ {
         proxy_pass http://backend:5000;
         proxy_set_header Host $host;
@@ -52,12 +52,12 @@ server {
         add_header Expires "0" always;
     }
 
-    # === REDIRECT R2 ===
+    # REDIRECT R2
     location ~ ^/files/(.*) {
         return 301 ${R2_PUBLIC_URL}/$1$is_args$args;
     }
 
-    # === CACHE STATIC ASSETS (Bypass JS/CSS/HTML, cache image/font) ===
+    # CACHE STATIC ASSETS (Bypass JS/CSS/HTML, cache image/font)
     location ~* \.(js|css|html)$ {
         expires -1;
         add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate";
@@ -71,11 +71,10 @@ server {
         access_log off;
     }
 
-    # === SPA ROUTING ===
+    # SPA ROUTING
     location / {
         try_files $uri $uri/ /index.html;
 
-        # Add no-cache for index.html (double icon)
         add_header Cache-Control "no-store, no-cache, must-revalidate";
         add_header Pragma "no-cache";
         add_header Expires "0";
