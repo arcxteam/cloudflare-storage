@@ -23,11 +23,11 @@
 
 - ❇️ **Support Continuous**: Full-stack deployment (backend and frontend), with UI/UX compatibility on both mobile and desktop
 - 📊 **Bucket Status**: Realtime api data tracking, progress bar, bucket file stored, bucket size stored, unBucket size stored and bucket time reset (manage 10GB monthly)
-- 📁 **Bucket Files**: Fast file uploads up to 1GB (configurable), search by filename, download count tracking, copy/share link functionality, and RAW file mode
+- 📁 **Bucket Files**: Fast file uploads up to 1GB-more (configurable), search by filename, download count tracking, copy/share link functionality, and RAW file mode
 - 🎨 **UI Multiple Icons**: Supports all icon media files and effects, with up to 6 files per slide in windows
 - 🧩 **Flexible Deploy**: Compatible with Amazon S3 API (boto3) for flexible storage deployment
-- 🗑️ **Trash & Burn**: Comprehensive storage file management with total cleanup to prevent global S3/R2 issues
-- 🐳 **Docker**: Docker: Ready for production and development, fully container-optimized with double/redirect host proxy, fastest no-caching built-in Nginx configuration, and resource usage monitoring
+- 🗑️ **Trash & Burn**: Comprehensive storage file management with total cleanup functionality to prevent global S3/R2 issues
+- 🐳 **Docker**: Ready for production and development, fully container-optimized with double/redirect host proxy, fastest no-caching built-in Nginx configuration, and resource usage monitoring
 - ☁️ **Cloudflare**: Utilizes R2 private storage infrastructure for secure data management
 
 ### **Preview Frontend Web UI Dashboard**
