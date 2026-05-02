@@ -35,6 +35,9 @@ wheels/
 *.log
 
 # Editor/IDE
+.github/
+.claude/
+.gemini/
 .vscode/
 .idea/
 *.swp

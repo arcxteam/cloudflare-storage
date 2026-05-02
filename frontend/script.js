@@ -1,5 +1,27 @@
-// Update script.js v1.1.2
+// Update script.js v1.2.0 (with auth)
 document.addEventListener('DOMContentLoaded', () => {
+    // === AUTH: Check for 401 and redirect to login ===
+    const handleAuthError = (status) => {
+        if (status === 401) {
+            window.location.href = '/login.html';
+            return true;
+        }
+        return false;
+    };
+
+    // === AUTH: Logout handler ===
+    const logoutButton = document.getElementById('logoutButton');
+    if (logoutButton) {
+        logoutButton.addEventListener('click', async () => {
+            logoutButton.disabled = true;
+            logoutButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Logging out...';
+            try {
+                await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+            } catch (e) { /* ignore */ }
+            window.location.href = '/login.html';
+        });
+    }
+
     const uploadForm = document.getElementById('uploadForm');
     const fileInput = document.getElementById('fileInput');
     const uploadButton = document.getElementById('uploadButton');
@@ -260,7 +282,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const downloadUrl = `/api/serve-file/${encodeURIComponent(filename)}?t=${Date.now()}`;
-            const response = await fetch(downloadUrl, { cache: 'no-cache' });
+            const response = await fetch(downloadUrl, { cache: 'no-cache', credentials: 'same-origin' });
+            if (handleAuthError(response.status)) return;
             if (!response.ok) throw new Error('Download failed');
             
             const blob = await response.blob();
@@ -327,6 +350,11 @@ document.addEventListener('DOMContentLoaded', () => {
             progressContainer.style.display = 'none';
             progressBar.style.width = '0%';
 
+            if (xhr.status === 401) {
+                handleAuthError(401);
+                return;
+            }
+
             if (xhr.status === 200) {
                 try {
                     const result = JSON.parse(xhr.responseText);
@@ -353,6 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         xhr.open('POST', '/api/upload', true);
+        xhr.withCredentials = true;
         xhr.send(formData);
     };
 
@@ -458,7 +487,8 @@ document.addEventListener('DOMContentLoaded', () => {
             loadingMessage.innerHTML = '<span class="loading-spinner"></span> Loading files...';
             fileSliderContainer.style.display = 'none';
             
-            const response = await fetch('/api/files?t=' + Date.now(), { cache: 'no-cache' });
+            const response = await fetch('/api/files?t=' + Date.now(), { cache: 'no-cache', credentials: 'same-origin' });
+            if (handleAuthError(response.status)) return;
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             
             const result = await response.json();

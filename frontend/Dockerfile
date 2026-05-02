@@ -2,7 +2,7 @@ FROM nginx:alpine
 
 RUN rm -f /etc/nginx/conf.d/default.conf
 
-COPY index.html style.css script.js /usr/share/nginx/html/
+COPY index.html login.html style.css script.js /usr/share/nginx/html/
 COPY src/ /usr/share/nginx/html/src/
 
 # Copy template config

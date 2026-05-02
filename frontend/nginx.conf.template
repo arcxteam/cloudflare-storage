@@ -26,16 +26,65 @@ server {
     keepalive_disable none;
 
     # SECURITY HEADERS
-    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Frame-Options "DENY" always;
     add_header X-XSS-Protection "1; mode=block" always;
     add_header X-Content-Type-Options "nosniff" always;
-    add_header Referrer-Policy "no-referrer-when-downgrade" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
 
     root /usr/share/nginx/html;
     index index.html;
 
-    # API PROXY FLASK
+    # === AUTH VERIFICATION SUBREQUEST ===
+    # Internal endpoint for auth_request — checks if user has valid session cookie
+    location = /_auth_check {
+        internal;
+        proxy_pass http://backend:5000/api/auth/verify;
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length "";
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Cookie $http_cookie;
+    }
+
+    # === PUBLIC ROUTES (no auth required) ===
+    # Login page — must be accessible without authentication
+    location = /login.html {
+        try_files $uri =404;
+        add_header Cache-Control "no-store, no-cache, must-revalidate";
+        add_header Pragma "no-cache";
+        add_header Expires "0";
+    }
+
+    # Auth API endpoints — must be accessible without authentication
+    location ~ ^/api/auth/ {
+        proxy_pass http://backend:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
+
+        add_header Cache-Control "no-store, no-cache, must-revalidate" always;
+        add_header Pragma "no-cache" always;
+        add_header Expires "0" always;
+    }
+
+    # Health check — accessible without authentication
+    location = /health {
+        proxy_pass http://backend:5000;
+        proxy_set_header Host $host;
+    }
+
+    # === PROTECTED API ROUTES ===
     location ~ ^/api/ {
+        auth_request /_auth_check;
+        auth_request_set $auth_status $upstream_status;
+
+        # On auth failure, return 401 (frontend JS will redirect to login)
+        error_page 401 = @auth_failed_api;
+
         proxy_pass http://backend:5000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -50,6 +99,12 @@ server {
         add_header Cache-Control "no-store, no-cache, must-revalidate" always;
         add_header Pragma "no-cache" always;
         add_header Expires "0" always;
+    }
+
+    # Auth failed for API — return JSON 401
+    location @auth_failed_api {
+        default_type application/json;
+        return 401 '{"error": "Authentication required"}';
     }
 
     # REDIRECT R2
@@ -71,12 +126,23 @@ server {
         access_log off;
     }
 
-    # SPA ROUTING
+    # SPA ROUTING — Protected with auth_request
     location / {
+        auth_request /_auth_check;
+        auth_request_set $auth_status $upstream_status;
+
+        # On auth failure, redirect to login page
+        error_page 401 = @auth_failed_page;
+
         try_files $uri $uri/ /index.html;
 
         add_header Cache-Control "no-store, no-cache, must-revalidate";
         add_header Pragma "no-cache";
         add_header Expires "0";
+    }
+
+    # Auth failed for page — redirect to login
+    location @auth_failed_page {
+        return 302 /login.html;
     }
 }

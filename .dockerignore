@@ -1,6 +1,9 @@
 # Git
 .git
 .gitignore
+.claude/
+.gemini/
+.github/
 
 # File&Folder data
 .env

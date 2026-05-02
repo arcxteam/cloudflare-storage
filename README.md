@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Release-v1.1.2-FF0069" alt="Version">
+  <img src="https://img.shields.io/badge/Release-v1.2.0-FF0069" alt="Version">
   <img src="https://img.shields.io/badge/R2-Cloudflare-orange" alt="cloudflare">
   <img src="https://img.shields.io/badge/Amazon_S3-AWS-brightgreen" alt="AWS">
   <img src="https://img.shields.io/badge/Buckets-Private_Storage-blue" alt="Storage">
@@ -29,6 +29,7 @@
 - 🗑️ **Trash & Burn**: Comprehensive storage file management with total cleanup functionality to prevent global S3/R2 issues
 - 🐳 **Docker**: Ready for production and development, fully container-optimized with double/redirect host proxy, fastest no-caching built-in Nginx configuration, and resource usage monitoring
 - ☁️ **Cloudflare**: Utilizes R2 private storage infrastructure for secure data management
+- 🔐 **Admin Portal Auth**: Secure login gate with password protection, JWT session (HttpOnly cookie), rate limiting, and full DevTools-proof security headers
 
 ### **Preview Frontend Web UI Dashboard**
 > https://arcxteam.github.io/cloudflare-storage/frontend/
@@ -62,6 +63,7 @@ cloudflare-storage/
 │   ├── Dockerfile
 │   ├── nginx.conf.template
 │   ├── index.html
++   ├── login.html          # Admin portal login page
 │   ├── style.css
 │   ├── script.js
 │   └── src/
@@ -122,6 +124,12 @@ PUBLIC_BASE_URL=http://localhost
 
 + Option C: Custom domains
 PUBLIC_BASE_URL=https://your-domain.com or sub-domain
+
++ Auth Security (admin login for web UI dashboard)
+ADMIN_PASSWORD=YourPasswordHere
++ Auto-generated if not set (recommended to set for session persistence across restarts)
+AUTH_SECRET_KEY=your-random-secret-key
+AUTH_SESSION_HOURS=24
 ```
 
 ### Create Buckets
@@ -183,6 +191,43 @@ docker compose logs -f
 # docker compose down
 ```
 
+## Security: Admin Portal Authentication
+
+This project includes a built-in **admin login portal** to protect your private storage from unauthorized access. When anyone visits the web UI, they must enter the admin password before accessing the dashboard.
+
+### How It Works
+
+| Layer | Protection |
+|-------|------------|
+| **Nginx** | `auth_request` blocks all pages/API without valid session |
+| **Backend** | JWT token in `HttpOnly` cookie (invisible to JavaScript/DevTools) |
+| **Rate Limit** | Max 5 login attempts per 15 minutes per IP |
+| **Headers** | CSP, X-Frame-Options DENY, XSS Protection, no-cache |
+
+### Configuration
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `ADMIN_PASSWORD` | ✅ Yes | Your admin login password (plain text in `.env`) |
+| `AUTH_SECRET_KEY` | ❌ Optional | JWT signing key. **Auto-generated** if empty, but session resets on container restart. Set for persistence |
+| `AUTH_SESSION_HOURS` | ❌ Optional | Login session duration in hours (default: `24`) |
+
+> **Note:** `.env` is listed in `.gitignore` and will **never** be pushed to GitHub. Only `.env.example` (with placeholders) is committed.
+
+### Change Password
+
+```bash
+nano .env
+# Edit: ADMIN_PASSWORD=YourNewPassword
+docker compose up -d --build
+```
+
+### Generate AUTH_SECRET_KEY (optional)
+
+```bash
+python3 -c "import secrets; print(secrets.token_hex(64))"
+# Copy the output to AUTH_SECRET_KEY in .env
+```
 
 ## License
 

@@ -2,13 +2,19 @@ import os
 import uuid
 import json
 import math
+import time
+import hmac
+import hashlib
+import secrets
 import logging
 from datetime import datetime, timedelta
-from flask import Flask, request, jsonify, send_from_directory, send_file, redirect, Response
+from functools import wraps
+from flask import Flask, request, jsonify, send_from_directory, send_file, redirect, Response, make_response
 from dotenv import load_dotenv
 import boto3
 from botocore.exceptions import NoCredentialsError, ClientError
 from io import BytesIO
+import jwt
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
@@ -27,6 +33,138 @@ PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://localhost").rstrip('/')
 
 DOWNLOAD_COUNT_FILE = 'data/download_counts.json'
 UPLOAD_HISTORY_FILE = 'data/upload_history.json'
+
+# === AUTH CONFIG ===
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
+AUTH_SECRET_KEY = os.getenv("AUTH_SECRET_KEY", secrets.token_hex(64))
+AUTH_COOKIE_NAME = "__Host-auth_token"
+AUTH_SESSION_HOURS = int(os.getenv("AUTH_SESSION_HOURS", "24"))
+
+# === RATE LIMITER (in-memory) ===
+login_attempts = {}  # {ip: [(timestamp, ...], ...}
+RATE_LIMIT_WINDOW = 900  # 15 minutes
+RATE_LIMIT_MAX = 5  # max attempts per window
+
+def check_rate_limit(ip):
+    """Check if IP has exceeded login rate limit."""
+    now = time.time()
+    if ip not in login_attempts:
+        login_attempts[ip] = []
+    
+    # Clean old entries
+    login_attempts[ip] = [t for t in login_attempts[ip] if now - t < RATE_LIMIT_WINDOW]
+    
+    if len(login_attempts[ip]) >= RATE_LIMIT_MAX:
+        return False
+    return True
+
+def record_attempt(ip):
+    """Record a login attempt for rate limiting."""
+    now = time.time()
+    if ip not in login_attempts:
+        login_attempts[ip] = []
+    login_attempts[ip].append(now)
+
+def get_client_ip():
+    """Get real client IP, considering proxy headers."""
+    return request.headers.get('X-Real-IP', 
+           request.headers.get('X-Forwarded-For', request.remote_addr))
+
+# === JWT TOKEN HELPERS ===
+def generate_auth_token():
+    """Generate a signed JWT token for authenticated session."""
+    now = datetime.utcnow()
+    payload = {
+        'iat': now,
+        'exp': now + timedelta(hours=AUTH_SESSION_HOURS),
+        'jti': secrets.token_hex(16),
+        'sub': 'admin',
+        'iss': 'r2-storage-auth'
+    }
+    return jwt.encode(payload, AUTH_SECRET_KEY, algorithm='HS256')
+
+def verify_auth_token(token):
+    """Verify JWT token. Returns payload or None."""
+    try:
+        payload = jwt.decode(
+            token, 
+            AUTH_SECRET_KEY, 
+            algorithms=['HS256'],
+            options={
+                'require': ['exp', 'iat', 'jti', 'sub', 'iss'],
+                'verify_exp': True,
+                'verify_iat': True
+            }
+        )
+        if payload.get('iss') != 'r2-storage-auth':
+            return None
+        if payload.get('sub') != 'admin':
+            return None
+        return payload
+    except jwt.ExpiredSignatureError:
+        app.logger.info("Auth token expired")
+        return None
+    except jwt.InvalidTokenError as e:
+        app.logger.warning(f"Invalid auth token: {e}")
+        return None
+
+def verify_password(password):
+    """Verify password against plain text from env (timing-safe)."""
+    if not ADMIN_PASSWORD:
+        app.logger.error("ADMIN_PASSWORD not configured in .env")
+        return False
+    try:
+        return hmac.compare_digest(
+            password.encode('utf-8'),
+            ADMIN_PASSWORD.encode('utf-8')
+        )
+    except Exception as e:
+        app.logger.error(f"Password verification error: {e}")
+        return False
+
+# === AUTH DECORATOR ===
+def require_auth(f):
+    """Decorator to require authentication on API endpoints."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        token = request.cookies.get(AUTH_COOKIE_NAME)
+        if not token:
+            return jsonify({"error": "Authentication required"}), 401
+        
+        payload = verify_auth_token(token)
+        if not payload:
+            response = make_response(jsonify({"error": "Invalid or expired session"}), 401)
+            # Clear invalid cookie
+            response.delete_cookie(AUTH_COOKIE_NAME, path='/', samesite='Strict')
+            return response
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
+# === SECURITY HEADERS ===
+@app.after_request
+def add_security_headers(response):
+    """Add security headers to every response."""
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    # CSP: only allow scripts/styles from self and CDN sources used by frontend
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
+        "font-src 'self' https://cdnjs.cloudflare.com; "
+        "img-src 'self' data:; "
+        "connect-src 'self'; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self';"
+    )
+    return response
 
 # === S3-R2 COMPATIBLE CLIENT ===
 s3_client = boto3.client(
@@ -167,6 +305,92 @@ def stream_r2_file(key):
         app.logger.error(f"Stream generator error for {key}: {e}")
         yield b""  # blank if error
 
+# === AUTH ROUTES ===
+@app.route('/api/auth/login', methods=['POST'])
+def auth_login():
+    """Authenticate admin with password. Sets HttpOnly JWT cookie."""
+    client_ip = get_client_ip()
+    
+    # Rate limit check
+    if not check_rate_limit(client_ip):
+        remaining = RATE_LIMIT_WINDOW - (time.time() - min(login_attempts.get(client_ip, [time.time()])))
+        app.logger.warning(f"Rate limit exceeded for IP: {client_ip}")
+        return jsonify({
+            "error": "Too many login attempts. Please try again later.",
+            "retry_after": int(remaining)
+        }), 429
+    
+    # Record this attempt
+    record_attempt(client_ip)
+    
+    # Parse request
+    data = request.get_json(silent=True)
+    if not data or 'password' not in data:
+        # Generic error - don't reveal what's missing
+        app.logger.warning(f"Login attempt with missing credentials from {client_ip}")
+        return jsonify({"error": "Invalid credentials"}), 401
+    
+    password = data.get('password', '')
+    
+    # Verify password
+    if not verify_password(password):
+        app.logger.warning(f"Failed login attempt from {client_ip}")
+        # Constant-time response to prevent timing attacks
+        return jsonify({"error": "Invalid credentials"}), 401
+    
+    # Generate token
+    token = generate_auth_token()
+    
+    # Build response - NO token in body, only in HttpOnly cookie
+    response = make_response(jsonify({"success": True}), 200)
+    
+    # Determine if we should set Secure flag (only for HTTPS)
+    is_secure = PUBLIC_BASE_URL.startswith('https')
+    
+    # Set HttpOnly cookie - __Host- prefix requires Secure + Path=/
+    cookie_name = AUTH_COOKIE_NAME if is_secure else "auth_token"
+    response.set_cookie(
+        cookie_name,
+        value=token,
+        httponly=True,
+        secure=is_secure,
+        samesite='Strict',
+        path='/',
+        max_age=AUTH_SESSION_HOURS * 3600
+    )
+    
+    app.logger.info(f"Successful login from {client_ip}")
+    return response
+
+@app.route('/api/auth/logout', methods=['POST'])
+def auth_logout():
+    """Clear auth cookie."""
+    response = make_response(jsonify({"success": True}), 200)
+    
+    is_secure = PUBLIC_BASE_URL.startswith('https')
+    cookie_name = AUTH_COOKIE_NAME if is_secure else "auth_token"
+    
+    response.delete_cookie(cookie_name, path='/', samesite='Strict')
+    
+    app.logger.info(f"Logout from {get_client_ip()}")
+    return response
+
+@app.route('/api/auth/verify', methods=['GET'])
+def auth_verify():
+    """Verify current auth session. Used by Nginx auth_request."""
+    is_secure = PUBLIC_BASE_URL.startswith('https')
+    cookie_name = AUTH_COOKIE_NAME if is_secure else "auth_token"
+    
+    token = request.cookies.get(cookie_name)
+    if not token:
+        return '', 401
+    
+    payload = verify_auth_token(token)
+    if not payload:
+        return '', 401
+    
+    return '', 200
+
 # === ROUTES ===
 @app.route('/')
 def index():
@@ -178,6 +402,7 @@ def static_files(filename):
 
 # === UPLOAD FILE - STREAMING - HISTORY ===
 @app.route('/api/upload', methods=['POST'])
+@require_auth
 def upload_file():
     if 'file' not in request.files:
         app.logger.warning("Upload request failed: No file part in request")
@@ -246,6 +471,7 @@ def upload_file():
 
 # === LIST FILES: DOWNLOAD COUNT & STATS ===
 @app.route('/api/files', methods=['GET'])
+@require_auth
 def list_files():
     try:
         objects = s3_client.list_objects_v2(Bucket=R2_BUCKET_NAME)
@@ -274,6 +500,7 @@ def list_files():
 
 # === DOWNLOAD FILE & INCREMENT COUNT STREAM R2 ===
 @app.route('/api/serve-file/<path:filename>', methods=['GET'])
+@require_auth
 def serve_file(filename):
     try:
         app.logger.info(f"Received download request for file: {filename}")
