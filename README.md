@@ -17,22 +17,25 @@
 
 ## Overview
 
-<mark>**Project knowledgment.**</mark> This project a powerful and user-friendly private file storage management, was born from a its self flexibility vision. The core concept, direction, and design were by **© Greyscope&Co | 0xgrey** resulting in a compactibility and intuitive storage clouding but securing. The project not only meets current needs but also anticipates personal requirements, ensuring a seamless and secure user experience.
+<mark>**Vision & Architecture.**</mark> This project is a robust, high-performance private file management ecosystem engineered with a focus on absolute flexibility and security. Conceptualized, architected, and designed by **0xgrey**, it delivers a highly compatible and intuitive cloud storage interface powered by Cloudflare R2. By bridging the gap between streamlined user experience and enterprise-grade security protocols, the project anticipates the evolving needs of personal data management while ensuring a seamless, low-latency operational environment.
 
 ### Key Features
 
-- ❇️ **Support Continuous**: Full-stack deployment (backend and frontend), with UI/UX compatibility on both mobile and desktop
-- 📊 **Bucket Status**: Realtime api data tracking, progress bar, bucket file stored, bucket size stored, unBucket size stored and bucket time reset (manage 10GB monthly)
-- 📁 **Bucket Files**: Fast file uploads up to 1GB-more (configurable), search by filename, download count tracking, copy/share link functionality, and RAW file mode
-- 🎨 **UI Multiple Icons**: Supports all icon media files and effects, with up to 6 files per slide in windows
-- 🧩 **Flexible Deploy**: Compatible with Amazon S3 API (boto3) for flexible storage deployment
-- 🗑️ **Trash & Burn**: Comprehensive storage file management with total cleanup functionality to prevent global S3/R2 issues
-- 🐳 **Docker**: Ready for production and development, fully container-optimized with double/redirect host proxy, fastest no-caching built-in Nginx configuration, and resource usage monitoring
-- ☁️ **Cloudflare**: Utilizes R2 private storage infrastructure for secure data management
-- 🔐 **Admin Portal Auth**: Secure login gate with password protection, JWT session (HttpOnly cookie), rate limiting, and full DevTools-proof security headers
+- ❇️ **Full-Stack Architecture**: End-to-end deployment (Flask/Nginx) featuring a fully responsive, desktop-and-mobile-optimized UI/UX.
+- 📊 **Real-Time Analytics**: Live API data tracking for bucket utilization, active progress bars, storage capacity metrics, and monthly bandwidth reset monitoring (e.g., 10GB quotas).
+- 📁 **Advanced File Management**: High-speed chunked uploads (1GB+ scalable), real-time filename search, download analytics, secure sharing links, and direct RAW streaming modes.
+- 🎨 **Dynamic Media Interface**: Intelligent media handling supporting extensive file-type icons, rich preview effects, and a responsive sliding-grid layout.
+- 🧩 **Universal S3 Compatibility**: Built on the robust Amazon S3 API (`boto3`) ensuring seamless deployment, high-throughput streaming, and interoperability across cloud providers.
+- 🗑️ **Lifecycle & Cleanup (Trash & Burn)**: Comprehensive state management with global bucket wipe capabilities, preventing orphaned data and maintaining R2 integrity.
+- 🐳 **Containerized Infrastructure**: Production-ready Docker environment featuring a dual-proxy setup, highly optimized zero-cache Nginx configurations, and strict isolation.
+- ☁️ **Cloudflare R2 Backbone**: Powered by Cloudflare's distributed edge infrastructure for zero-egress, high-availability private data management.
+- 🔐 **Zero-Trust Security Gate**: Formidable authentication barrier utilizing timing-safe passwords, strict HttpOnly/Secure JWT sessions, proactive rate-limiting, and hardened HTTP security headers.
 
 ### **Preview Frontend Web UI Dashboard**
+
 > https://arcxteam.github.io/cloudflare-storage/frontend/
+
+**Password:** `project123`
 
 ## Requirements
 
@@ -61,7 +64,7 @@ cloudflare-storage/
 │       └── .gitkeep
 ├── frontend/
 │   ├── Dockerfile
-│   ├── nginx.conf.template
+│   ├── nginx.conf.template # Enhanced for reverse proxy nginx + cloudflare
 │   ├── index.html
 │   ├── login.html
 │   ├── style.css
