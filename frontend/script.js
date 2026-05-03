@@ -1,6 +1,6 @@
 // Update script.js v1.2.0 (with auth)
 document.addEventListener('DOMContentLoaded', () => {
-    // === AUTH: Check for 401 and redirect to login ===
+    // Handle 401 Unauthorized errors by redirecting to login
     const handleAuthError = (status) => {
         if (status === 401) {
             window.location.href = '/login.html';
@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return false;
     };
 
-    // === AUTH: Logout handler ===
+    // Handle logout action
     const logoutButton = document.getElementById('logoutButton');
     if (logoutButton) {
         logoutButton.addEventListener('click', async () => {

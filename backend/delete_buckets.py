@@ -2,7 +2,6 @@ import os
 import boto3
 from dotenv import load_dotenv
 
-# Note: this load data from file .env
 load_dotenv()
 
 # Config S3 client, coz this compatible R2 use too

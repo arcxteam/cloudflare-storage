@@ -63,7 +63,7 @@ cloudflare-storage/
 │   ├── Dockerfile
 │   ├── nginx.conf.template
 │   ├── index.html
-+   ├── login.html          # Admin portal login page
+│   ├── login.html
 │   ├── style.css
 │   ├── script.js
 │   └── src/
@@ -126,8 +126,8 @@ PUBLIC_BASE_URL=http://localhost
 PUBLIC_BASE_URL=https://your-domain.com or sub-domain
 
 + Auth Security (admin login for web UI dashboard)
-ADMIN_PASSWORD=YourPasswordHere
-+ Auto-generated if not set (recommended to set for session persistence across restarts)
+ADMIN_PASSWORD=Password-Here
++ Auto-generated if not set
 AUTH_SECRET_KEY=your-random-secret-key
 AUTH_SESSION_HOURS=24
 ```
@@ -212,7 +212,6 @@ This project includes a built-in **admin login portal** to protect your private 
 | `AUTH_SECRET_KEY` | ❌ Optional | JWT signing key. **Auto-generated** if empty, but session resets on container restart. Set for persistence |
 | `AUTH_SESSION_HOURS` | ❌ Optional | Login session duration in hours (default: `24`) |
 
-> **Note:** `.env` is listed in `.gitignore` and will **never** be pushed to GitHub. Only `.env.example` (with placeholders) is committed.
 
 ### Change Password
 

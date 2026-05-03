@@ -1,20 +1,18 @@
-import os
-import uuid
-import json
-import math
-import time
 import hmac
-import hashlib
-import secrets
+import json
 import logging
+import math
+import os
+import secrets
+import time
 from datetime import datetime, timedelta
 from functools import wraps
-from flask import Flask, request, jsonify, send_from_directory, send_file, redirect, Response, make_response
-from dotenv import load_dotenv
+
 import boto3
-from botocore.exceptions import NoCredentialsError, ClientError
-from io import BytesIO
 import jwt
+from botocore.exceptions import ClientError
+from dotenv import load_dotenv
+from flask import Flask, request, jsonify, send_from_directory, send_file, redirect, Response, make_response
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
@@ -22,7 +20,7 @@ load_dotenv()
 
 app = Flask(__name__, static_folder=None)
 
-# === CONFIG CLOUDFLARE R2 ===
+# Cloudflare R2 Configuration
 R2_ACCOUNT_ID = os.getenv("R2_ACCOUNT_ID")
 R2_ACCESS_KEY_ID = os.getenv("R2_ACCESS_KEY_ID")
 R2_SECRET_ACCESS_KEY = os.getenv("R2_SECRET_ACCESS_KEY")
@@ -34,16 +32,16 @@ PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://localhost").rstrip('/')
 DOWNLOAD_COUNT_FILE = 'data/download_counts.json'
 UPLOAD_HISTORY_FILE = 'data/upload_history.json'
 
-# === AUTH CONFIG ===
+# Authentication Configuration
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
 AUTH_SECRET_KEY = os.getenv("AUTH_SECRET_KEY", secrets.token_hex(64))
 AUTH_COOKIE_NAME = "__Host-auth_token"
 AUTH_SESSION_HOURS = int(os.getenv("AUTH_SESSION_HOURS", "24"))
 
-# === RATE LIMITER (in-memory) ===
+# In-memory Rate Limiter
 login_attempts = {}  # {ip: [(timestamp, ...], ...}
-RATE_LIMIT_WINDOW = 900  # 15 minutes
-RATE_LIMIT_MAX = 5  # max attempts per window
+RATE_LIMIT_WINDOW = 900  # 15mins
+RATE_LIMIT_MAX = 3
 
 def check_rate_limit(ip):
     """Check if IP has exceeded login rate limit."""
@@ -70,7 +68,7 @@ def get_client_ip():
     return request.headers.get('X-Real-IP', 
            request.headers.get('X-Forwarded-For', request.remote_addr))
 
-# === JWT TOKEN HELPERS ===
+# JWT Token Management
 def generate_auth_token():
     """Generate a signed JWT token for authenticated session."""
     now = datetime.utcnow()
@@ -122,7 +120,7 @@ def verify_password(password):
         app.logger.error(f"Password verification error: {e}")
         return False
 
-# === AUTH DECORATOR ===
+# Authentication Decorator
 def require_auth(f):
     """Decorator to require authentication on API endpoints."""
     @wraps(f)
@@ -141,7 +139,7 @@ def require_auth(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# === SECURITY HEADERS ===
+# Security Headers Middleware
 @app.after_request
 def add_security_headers(response):
     """Add security headers to every response."""
@@ -166,7 +164,7 @@ def add_security_headers(response):
     )
     return response
 
-# === S3-R2 COMPATIBLE CLIENT ===
+# S3-Compatible Storage Client
 s3_client = boto3.client(
     's3',
     endpoint_url=R2_ENDPOINT_URL,
@@ -175,7 +173,7 @@ s3_client = boto3.client(
     region_name='auto'
 )
 
-# === HELPER FUNCTIONS ===
+# Helper Functions
 def get_download_counts():
     """Read file JSON for counting any downloaded."""
     if not os.path.exists(DOWNLOAD_COUNT_FILE):
@@ -294,7 +292,7 @@ def get_bucket_stats():
             "days_until_reset": get_days_until_reset()
         }
 
-# === DOWNLOAD: STREAMING R2 ===
+# R2 Streaming Generator
 def stream_r2_file(key):
     """Stream file from R2 with chunk-by-chunk 1MB"""
     try:
@@ -305,7 +303,7 @@ def stream_r2_file(key):
         app.logger.error(f"Stream generator error for {key}: {e}")
         yield b""  # blank if error
 
-# === AUTH ROUTES ===
+# Authentication Routes
 @app.route('/api/auth/login', methods=['POST'])
 def auth_login():
     """Authenticate admin with password. Sets HttpOnly JWT cookie."""
@@ -391,7 +389,7 @@ def auth_verify():
     
     return '', 200
 
-# === ROUTES ===
+# Application Routes
 @app.route('/')
 def index():
     return send_from_directory('../frontend', 'index.html')
@@ -400,7 +398,7 @@ def index():
 def static_files(filename):
     return send_from_directory('../frontend', filename)
 
-# === UPLOAD FILE - STREAMING - HISTORY ===
+# File Upload Handler
 @app.route('/api/upload', methods=['POST'])
 @require_auth
 def upload_file():
@@ -469,7 +467,7 @@ def upload_file():
         app.logger.error(f"Upload failed for file '{original_filename}': {e}", exc_info=True)
         return jsonify({"error": f"Upload failed: {str(e)}"}), 500
 
-# === LIST FILES: DOWNLOAD COUNT & STATS ===
+# File Listing and Statistics
 @app.route('/api/files', methods=['GET'])
 @require_auth
 def list_files():
@@ -498,13 +496,12 @@ def list_files():
         app.logger.error(f"List files error: {e}")
         return jsonify({"error": f"Failed to fetch file list: {str(e)}"}), 500
 
-# === DOWNLOAD FILE & INCREMENT COUNT STREAM R2 ===
+# File Download Handler
 @app.route('/api/serve-file/<path:filename>', methods=['GET'])
 @require_auth
 def serve_file(filename):
     try:
         app.logger.info(f"Received download request for file: {filename}")
-        # Debug
         app.logger.info(f"Encoded filename: {filename}")
         
         head = s3_client.head_object(Bucket=R2_BUCKET_NAME, Key=filename)
@@ -538,7 +535,7 @@ def serve_file(filename):
         app.logger.error(f"Download error for {filename}: {e}", exc_info=True)
         return jsonify({"error": "Internal server error: " + str(e)}), 500
 
-# === HEALTH CHECK ===
+# Health Check
 @app.route('/health')
 def health_check():
     return jsonify({"status": "healthy"}), 200
