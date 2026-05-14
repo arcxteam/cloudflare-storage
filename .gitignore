@@ -34,6 +34,8 @@ wheels/
 # File log
 *.log
 
+docs/index.html*
+
 # Editor/IDE
 .github/
 .claude/

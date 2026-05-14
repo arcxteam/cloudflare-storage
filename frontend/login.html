@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <canvas id="noiseCanvas"></canvas>
     <div class="container">
         <div class="login-wrapper">
             <div class="login-card">
@@ -73,6 +74,37 @@
         </div>
     </div>
 
+    <script>
+    (function() {
+        var canvas = document.getElementById('noiseCanvas');
+        if (!canvas) return;
+        var ctx = canvas.getContext('2d');
+        var render = function() {
+            var dpr = Math.min(window.devicePixelRatio || 1, 2);
+            var w = window.innerWidth;
+            var h = window.innerHeight;
+            canvas.width = w * dpr;
+            canvas.height = h * dpr;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            var imageData = ctx.createImageData(canvas.width, canvas.height);
+            var data = imageData.data;
+            for (var y = 0; y < canvas.height; y++) {
+                for (var x = 0; x < canvas.width; x++) {
+                    if (Math.random() > 0.35) continue;
+                    var i = (y * canvas.width + x) * 4;
+                    var noise = Math.random() * 28;
+                    data[i] = noise * 0.7;
+                    data[i + 1] = noise * 1.1;
+                    data[i + 2] = noise * 0.9;
+                    data[i + 3] = 18 + Math.random() * 22;
+                }
+            }
+            ctx.putImageData(imageData, 0, 0);
+        };
+        render();
+        window.addEventListener('resize', render);
+    })();
+    </script>
     <script>
     (function() {
         'use strict';
